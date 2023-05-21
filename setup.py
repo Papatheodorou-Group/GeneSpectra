@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='genespectra',
       version='0.1',
@@ -7,5 +7,5 @@ setup(name='genespectra',
       author='Yuyao Song',
       author_email='ysong@ebi.ac.uk',
       license='MIT',
-      packages=['genespectra'],
+      packages=find_packages(),
       zip_safe=False)

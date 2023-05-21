@@ -1,3 +1,4 @@
+README.md
 setup.py
 genespectra/__init__.py
 genespectra.egg-info/PKG-INFO
@@ -5,3 +6,13 @@ genespectra.egg-info/SOURCES.txt
 genespectra.egg-info/dependency_links.txt
 genespectra.egg-info/not-zip-safe
 genespectra.egg-info/top_level.txt
+genespectra/classify_genes/__init__.py
+genespectra/classify_genes/classify_genes.py
+genespectra/classify_genes/gene_topics.py
+genespectra/cross_species/__init__.py
+genespectra/cross_species/compare_cell_types.py
+genespectra/cross_species/gene_homology.py
+genespectra/metacells/__init__.py
+genespectra/metacells/make_metacells.py
+genespectra/tests/__init__.py
+genespectra/tests/tests.py
