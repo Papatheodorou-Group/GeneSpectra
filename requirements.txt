@@ -7,3 +7,4 @@ pandas~=1.5.3
 scipy~=1.10.1
 seaborn~=0.12.2
 scanpy~=1.7.2
+numba~=0.56.4
