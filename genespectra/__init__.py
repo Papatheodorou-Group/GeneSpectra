@@ -1,6 +1,7 @@
-def greet(name):
-    return f"Hi {name}, you are gorgeous!"
 
+from . import gene_classification as gc
+from . import metacells as mc
+from . import cross_species as cs
 
 from anndata import (
     AnnData,
@@ -14,3 +15,6 @@ from anndata import (
     read_text,
     read_umi_tools,
 )
+
+def greet(name):
+    return f"Hi {name}, you are gorgeous!"
