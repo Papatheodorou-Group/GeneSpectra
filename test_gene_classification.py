@@ -1,14 +1,8 @@
-import scanpy as sc
 import numpy as np
 import pandas as pd
-import warnings
-from numba import njit
-import matplotlib.pyplot as plt
-import seaborn as sns
+import scanpy as sc
 
-sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
-
-
+import cProfile
 def remove_not_profiled_genes(adata):
     """
     Filrer genes that only have zeros across all cells i.e. at least one count
@@ -87,101 +81,9 @@ def remove_lowly_expressed_genes(adata, min_count=1):
     return result_ad
 
 
-def choose_mtx_rep(adata, use_raw=False, layer=None):
-    is_layer = layer is not None
-    if use_raw and is_layer:
-        raise ValueError(
-            "Cannot use expression from both layer and raw. You provided:"
-            f"'use_raw={use_raw}' and 'layer={layer}'"
-        )
-    if is_layer:
-        return adata.layers[layer]
-    elif use_raw:
-        return adata.raw.X
-    else:
-        return adata.X
 
 
-def get_mean_var_disp(adata, axis=0):
-    X = choose_mtx_rep(adata, use_raw=False, layer=None)
-    mean = np.mean(X, axis=axis, dtype=np.float64)
-    mean_sq = np.multiply(X, X).mean(axis=axis, dtype=np.float64)
-    var = mean_sq - mean ** 2
-    # enforce R convention (unbiased estimator) for variance
-    var *= X.shape[axis] / (X.shape[axis] - 1)
-    mean[mean == 0] = 1e-12  # set entries equal to zero to small value
-    dispersion = var / mean
 
-    adata.var['gene_mean_log1psf'] = get_mean_var_disp(adata)[0]
-    adata.var['gene_var_log1psf'] = get_mean_var_disp(adata)[1]
-    adata.var['gene_dispersion_log1psf'] = get_mean_var_disp(adata)[2]
-
-    return adata
-
-
-def find_low_variance_genes(adata, var_cutoff=0.1):
-    print("find_low variance_genes")
-    if 'gene_var_log1psf' not in adata.var.columns:
-        raise KeyError("gene_var_log1psf is not annotated for adata.var, run get_mean_var_disp first")
-    adata.var['low_variance'] = adata.var['gene_var_log1psf'] <= var_cutoff
-    print(adata.var['low_variance'].value_counts())
-
-    if adata.var['low_variance'].sum() == adata.var.shape[0]:
-        warnings.warn("All genes are low variance (var log1psf), consider lowering the var_cutoff")
-
-    return adata
-
-
-def find_low_expression_genes(adata, mean_cutoff=0.1):
-    print("find_low expression_genes")
-    if 'gene_mean_log1psf' not in adata.var.columns:
-        raise KeyError("gene_mean_log1psf is not annotated for adata.var, run get_mean_var_disp first")
-    adata.var['low_mean'] = adata.var['gene_mean_log1psf'] <= mean_cutoff
-    print(adata.var['low_mean'].value_counts())
-
-    if adata.var['low_mean'].sum() == adata.var.shape[0]:
-        warnings.warn("All genes are low expression (mean log1psf), consider lowering the mean_cutoff")
-
-    return adata
-
-
-def subset_to_enhanced_genes():
-    print("subset_to_enhanced_genes")
-
-
-def plot_mean_var(adata, mean_ref, var_ref):
-    ax = plt.axes()
-    sns.scatterplot(data=adata.var, x="gene_mean_log1psf", y="gene_var_log1psf", size=1)
-    if mean_ref is not None:
-        plt.axvline(x=mean_ref, color='green', linestyle='--')
-    if var_ref is not None:
-        plt.axhline(y=var_ref, color='green', linestyle='--')
-    return ax
-
-
-def plot_mean_var_pie(adata):
-    if 'low_variance' not in adata.var.columns or 'low_mean' not in adata.var.columns:
-        raise KeyError("low variance and low mean not in adata.var.columns"
-                       "run find_low_variance_genes and find_low_expression_genes on adata")
-
-    low_mean_low_var = adata.var.loc[adata.var.low_variance & adata.var.low_mean, :].shape[0]
-    high_mean_low_var = adata.var.loc[adata.var.low_variance & ~adata.var.low_mean, :].shape[0]
-    high_mean_high_var = adata.var.loc[~adata.var.low_variance & ~adata.var.low_mean, :].shape[0]
-    low_mean_high_var = adata.var.loc[~adata.var.low_variance & adata.var.low_mean, :].shape[0]
-
-    y = np.array([high_mean_high_var, high_mean_low_var, low_mean_high_var, low_mean_low_var])
-    labels = ["high_mean_high_var", "high_mean_low_var", "low_mean_high_var", "low_mean_low_var"]
-    ax = plt.axes()
-    plt.pie(y,
-            labels=labels,
-            autopct='%.1f%%',
-            wedgeprops={'linewidth': 1.0, 'edgecolor': 'white'},
-            textprops={'size': 'medium'})
-    plt.legend(bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=2)
-    return ax
-
-
-@njit
 def hpa_gene_classification(input_ad, anno_col, max_group_n=None, exp_lim=1, enr_fold=5):
     """
     Core function to run HPA classification of genes, all genes are classified into:
@@ -210,8 +112,7 @@ def hpa_gene_classification(input_ad, anno_col, max_group_n=None, exp_lim=1, enr
         max_group_n = np.floor(num_cell_types / 2)
 
     print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group_size = {max_group_n}")
-    data = res.T.reset_index().rename(columns={"index": "gene"}).melt(id_vars='gene', var_name='tissue',
-                                                                      value_name='expression')
+    data = res.T.reset_index().rename(columns={"index":"gene"}).melt(id_vars='gene', var_name='tissue', value_name='expression')
     data = pd.DataFrame(data)
 
     gene_col = 'gene'
@@ -407,3 +308,18 @@ def get_group_average(input_ad, anno_col):
     for clust in input_ad.obs[anno_col].cat.categories:
         res.loc[clust] = input_ad[input_ad.obs[anno_col].isin([clust]), :].X.mean(0)
     return res
+
+
+ad = sc.read_h5ad("data/hs_heart_metacells_anno.h5ad")
+ad = remove_not_profiled_genes(ad)
+ad = depth_normalize_counts(ad)
+ad = find_low_count_genes(ad, min_count=1)
+ad = remove_lowly_expressed_genes(ad)
+ad = remove_cell_cycle_genes(ad)
+
+
+with cProfile.Profile() as pr:
+    pr.enable()
+    result = hpa_gene_classification(ad, anno_col='cell_ontology_base', max_group_n=None, exp_lim=1, enr_fold=4)
+    pr.disable()
+    pr.dump_stats('hpa_profile_stats')
