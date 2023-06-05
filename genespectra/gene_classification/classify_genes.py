@@ -181,8 +181,21 @@ def plot_mean_var_pie(adata):
     return ax
 
 
-@njit
-def hpa_gene_classification(input_ad, anno_col, max_group_n=None, exp_lim=1, enr_fold=5):
+def prepare_anndata_for_classification(input_ad, anno_col):
+    """
+    :param input_ad: an anndata with each cell a metacell, size-factor normalized but not log transformed
+    :param anno_col: the column in adata.obs with cell groups information, usually cell type
+    :return:
+    """
+    res = get_group_average(input_ad, anno_col)
+    data = res.T.reset_index().rename(columns={"index": "gene"}).melt(id_vars='gene', var_name='tissue',
+                                                                      value_name='expression')
+    data = pd.DataFrame(data)
+
+    return data
+
+
+def hpa_gene_classification(data, max_group_n=None, exp_lim=1, enr_fold=5):
     """
     Core function to run HPA classification of genes, all genes are classified into:
     - Not detected: expression value never above zero
@@ -194,28 +207,25 @@ def hpa_gene_classification(input_ad, anno_col, max_group_n=None, exp_lim=1, enr
     - Low cell type specificity: none of the above
 
     Number of expressed cell types are also reported
-    :param input_ad: an anndata with each cell a metacell, size-factor normalized but not log transformed
-    :param anno_col: the column in adata.obs with cell groups information, usually cell type
+    :param data:
     :param exp_lim: the limit of expression, default 1
     :param enr_fold: the fold for enrichment and enhancement
     :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
     :return: a pd.dataframe containing information and classification of all genes
     """
     print("gene_classification")
-    res = get_group_average(input_ad, anno_col)
-    num_cell_types, num_genes = res.shape
-
-    # by default, max groups is at most 50% of the number of groups
-    if max_group_n is None:
-        max_group_n = np.floor(num_cell_types / 2)
-
-    print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group_size = {max_group_n}")
-    data = res.T.reset_index().rename(columns={"index": "gene"}).melt(id_vars='gene', var_name='tissue',
-                                                                      value_name='expression')
-    data = pd.DataFrame(data)
 
     gene_col = 'gene'
     group_col = 'tissue'
+
+    # by default, max groups is at most 50% of the number of groups
+
+    if max_group_n is None:
+        max_group_n = np.floor(len(data['tissue'].astype('category').cat.categories) / 2)
+
+    num_cell_types = len(data['tissue'].astype('category').cat.categories)
+    num_genes = len(data['gene'].astype('category').cat.categories)
+    print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group={max_group_n}")
 
     data['expression'] = np.round(data['expression'].astype("float32"), 4)
 
@@ -313,8 +323,17 @@ def hpa_gene_classification(input_ad, anno_col, max_group_n=None, exp_lim=1, enr
         axis=1)
     gene_class_info['n_enhanced'] = gene_class_info['exps_enhanced'].apply(lambda x: len(x))
 
-    gene_class_info['enhanced_in'] = gene_class_info['exps_enhanced'].apply(
-        lambda x: ';'.join(sorted(data_.loc[data_['expression'].isin(x)]['tissue'])))
+    gene_class_info['enhanced_in'] = gene_class_info['enhanced_in'] = gene_class_info.apply(
+        lambda row: ';'.join(
+            sorted(
+                data_.loc[
+                    (data_['gene'] == row['gene']) &
+                    (data_['expression'] / row['mean_exp'] >= enr_fold) &
+                    (data_['expression'] >= exp_lim)
+                    ]['tissue']
+            )
+        ),
+        axis=1)
     # assign gene categories with this order
     # first satisfied condition option is used when multiple are satisfied
     gene_class_info['spec_category'] = np.select(
@@ -322,7 +341,9 @@ def hpa_gene_classification(input_ad, anno_col, max_group_n=None, exp_lim=1, enr
             gene_class_info['n_det'] == 0,
             gene_class_info['n_exp'] == 0,
             (gene_class_info['max_exp'] / gene_class_info['max_2nd_or_lim']) >= enr_fold,
-            (gene_class_info['max_exp'] >= gene_class_info['lim']) & (gene_class_info['n_over'] <= max_group_n) & (gene_class_info['n_over'] > 1) & ((gene_class_info['mean_over'] / gene_class_info['max_under_lim']) >= enr_fold),
+            (gene_class_info['max_exp'] >= gene_class_info['lim']) & (gene_class_info['n_over'] <= max_group_n) & (
+                    gene_class_info['n_over'] > 1) & (
+                    (gene_class_info['mean_over'] / gene_class_info['max_under_lim']) >= enr_fold),
             gene_class_info['n_enhanced'] == 1,
             gene_class_info['n_enhanced'] > 1
         ],
