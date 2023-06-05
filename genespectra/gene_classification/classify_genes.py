@@ -103,18 +103,17 @@ def choose_mtx_rep(adata, use_raw=False, layer=None):
 
 
 def get_mean_var_disp(adata, axis=0):
-    X = choose_mtx_rep(adata, use_raw=False, layer=None)
-    mean = np.mean(X, axis=axis, dtype=np.float64)
-    mean_sq = np.multiply(X, X).mean(axis=axis, dtype=np.float64)
+    mat = choose_mtx_rep(adata, use_raw=False, layer=None)
+    mean = np.mean(mat, axis=axis, dtype=np.float64)
+    mean_sq = np.multiply(mat, mat).mean(axis=axis, dtype=np.float64)
     var = mean_sq - mean ** 2
     # enforce R convention (unbiased estimator) for variance
-    var *= X.shape[axis] / (X.shape[axis] - 1)
+    var *= mat.shape[axis] / (mat.shape[axis] - 1)
     mean[mean == 0] = 1e-12  # set entries equal to zero to small value
     dispersion = var / mean
-
-    adata.var['gene_mean_log1psf'] = get_mean_var_disp(adata)[0]
-    adata.var['gene_var_log1psf'] = get_mean_var_disp(adata)[1]
-    adata.var['gene_dispersion_log1psf'] = get_mean_var_disp(adata)[2]
+    adata.var['gene_mean_log1psf'] = mean
+    adata.var['gene_var_log1psf'] = var
+    adata.var['gene_dispersion_log1psf'] = dispersion
 
     return adata
 
