@@ -74,7 +74,17 @@ def from_eggnog_to_ensembl_id(input_eggnog, species_1, species_2):
     return merged_df_sp2
 
 
-def homology_mapping_ensembl(species_1, species_2, classes_sp1, classes_sp2):
+def homology_mapping_ensembl(species_1, species_2, classes_sp1, classes_sp2, brief=False):
+    """
+    Queries from ENSEMBL gene homology to map classified genes from two species using ENSEMBL gene id
+
+    :param species_1: the ensembl name for species_1, such as mmusculus
+    :param species_2:the ensembl name for species_2, such as hsapiens
+    :param classes_sp1: the hpa classification from species 1
+    :param classes_sp2: the hpa classification from species 2
+    :param brief: whether return brief result or the full result
+    :return: a dataframe with gene classes from both species and genes mapped with ENSEMBL homology
+    """
     # Connect to the BioMart server
     server = BiomartServer("http://www.ensembl.org/biomart")
     # Select the Ensembl Gene ID dataset
@@ -100,8 +110,13 @@ def homology_mapping_ensembl(species_1, species_2, classes_sp1, classes_sp2):
 
     print(f"ensembl homology mapped genes from {species_1}: {unique_genes_mapped_sp1}")
 
-    minimum_classes_sp1 = classes_sp1[['gene', 'spec_category', 'enriched_tissues']]
-    minimum_classes_sp2 = classes_sp2[['gene', 'spec_category', 'enriched_tissues']]
+    if brief:
+
+        minimum_classes_sp1 = classes_sp1[['gene', 'spec_category', 'enriched_tissues']]
+        minimum_classes_sp2 = classes_sp2[['gene', 'spec_category', 'enriched_tissues']]
+    else:
+        minimum_classes_sp1 = classes_sp1
+        minimum_classes_sp2 = classes_sp2
 
     mapping_sp1 = pd.merge(mapping_df, minimum_classes_sp1, left_on='ensembl_gene_id', right_on='gene', how='inner')
 

@@ -22,3 +22,4 @@ def plot_categories_hist(data):
 
     fig.show()
     return fig
+
