@@ -6,12 +6,14 @@ from numba import njit
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import multiprocessing as mp
+
 sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 
 
 def remove_not_profiled_genes(adata):
     """
-    Filrer genes that only have zeros across all cells i.e. at least one count
+    Filter genes that only have zeros across all cells i.e. at least one count
     :param adata: an anndata object
     :return: an anndata object with genes only have zeros removed
     """
@@ -29,7 +31,13 @@ def depth_normalize_counts(adata, target_sum=None):
     :return: an anndata object with normalized counts
     """
     print("Size factor depth normalize counts")
+    if target_sum is not None:
+        print(f"Target total UMI per cell is {target_sum}")
+    else:
+        print(f"Target total UMI per cell is the average UMI across cells")
     result_ad = sc.pp.normalize_total(adata, target_sum=target_sum, copy=True)
+    print(f"Total UMI count is {result_ad.X.sum(axis=1)[0].round()}")
+
     return result_ad
 
 
@@ -70,10 +78,11 @@ def remove_cell_cycle_genes(adata, cell_cycle_var_col='forbidden_gene'):
     num_cell_cycle = adata[:, adata.var[cell_cycle_var_col]].shape[1]
     result_ad = adata[:, ~adata.var[cell_cycle_var_col]].copy()
     result_ad.uns['num_cell_cycle_genes'] = num_cell_cycle
+    print(f"Removed {num_cell_cycle} cell cycle and related genes")
     return result_ad
 
 
-def remove_lowly_expressed_genes(adata, min_count=1):
+def remove_low_counts_genes(adata, min_count=1):
     """
     Simply remove all lowly expressed genes found by find_low_count_genes
     :param adata: an anndata object with lowly expressed genes marked by find_low_count_genes
@@ -83,6 +92,7 @@ def remove_lowly_expressed_genes(adata, min_count=1):
     num_lowly_expressed = adata[:, adata.var[f"never_above_{min_count}"]].shape[1]
     result_ad = adata[:, ~adata.var[f"never_above_{min_count}"]].copy()
     result_ad.uns['num_lowly_expressed'] = num_lowly_expressed
+    print(f"Removed {num_lowly_expressed} low counts genes")
 
     return result_ad
 
@@ -194,7 +204,11 @@ def prepare_anndata_for_classification(input_ad, anno_col):
     return data
 
 
-def hpa_gene_classification(data, max_group_n=None, exp_lim=1, enr_fold=5):
+def hpa_gene_classification(data: pd.DataFrame,
+                            max_group_n: int = None,
+                            exp_lim: float = 1,
+                            enr_fold: float = 5
+                            ) -> pd.DataFrame:
     """
     Core function to run HPA classification of genes, all genes are classified into:
     - Not detected: expression value never above zero
@@ -212,7 +226,7 @@ def hpa_gene_classification(data, max_group_n=None, exp_lim=1, enr_fold=5):
     :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
     :return: a pd.dataframe containing information and classification of all genes
     """
-    print("gene_classification")
+    print("Running HPA gene classification \n")
 
     gene_col = 'gene'
     group_col = 'tissue'
@@ -224,7 +238,7 @@ def hpa_gene_classification(data, max_group_n=None, exp_lim=1, enr_fold=5):
 
     num_cell_types = len(data['tissue'].astype('category').cat.categories)
     num_genes = len(data['gene'].astype('category').cat.categories)
-    print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group={max_group_n}")
+    print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group={max_group_n}\n")
 
     data['expression'] = np.round(data['expression'].astype("float32"), 4)
 
@@ -427,3 +441,65 @@ def get_group_average(input_ad, anno_col):
     for clust in input_ad.obs[anno_col].cat.categories:
         res.loc[clust] = input_ad[input_ad.obs[anno_col].isin([clust]), :].X.mean(0)
     return res
+
+
+def batch_dataframe(data, num_gene_batches, random_selection=False, random_seed=123):
+    if random_selection:
+        np.random.seed(random_seed)
+
+    unique_genes = data['gene'].unique()
+
+    if random_selection:
+        np.random.shuffle(unique_genes)
+
+    gene_batches = np.random.choice(range(num_gene_batches), len(unique_genes))
+
+    gene_batch_mapping = dict(zip(unique_genes, gene_batches))
+
+    data['gene_batch'] = data['gene'].map(gene_batch_mapping)
+
+    return data
+
+
+# Define the function that will be applied to each group
+def process_group(group, max_group_n=None, exp_lim=0.01, enr_fold=4):
+    processed_data = hpa_gene_classification(group, max_group_n=max_group_n, exp_lim=exp_lim, enr_fold=enr_fold)
+
+    return processed_data
+
+
+# Your original function that operates on the grouped DataFrame
+def hpa_gene_classification_multiprocess(data, num_gene_batches=10, random_selection=False, random_seed=123,
+                                         max_group_n=None, exp_lim=0.01, enr_fold=4):
+    """
+    Multiprocessing to speed up HPA gene classification function
+    Split the genes into num_gene_batches and process them in parallel
+    Very helpful for large datasets
+    :param random_seed: numpy random seed
+    :param num_gene_batches: number of batches to group all genes, default 10, takes a few sec to run for 32k genes
+    :param random_selection: whether randomly shuffle the genes when batching
+    :param data: the input data from prepare_anndata_for_classification
+    :param exp_lim: the limit of expression, default 1
+    :param enr_fold: the fold for enrichment and enhancement
+    :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
+    :return: a pd.dataframe containing information and classification of all genes
+    """
+
+    # Create a pool of workers
+    pool = mp.Pool(mp.cpu_count())
+
+    # Batch and split the DataFrame into groups based on the specified column
+    df = batch_dataframe(data, num_gene_batches=num_gene_batches, random_selection=random_selection, random_seed=random_seed)
+
+    groups = df.groupby('gene_batch')
+
+    # Apply the function to each group in parallel
+    results = pool.starmap(process_group, [(group, max_group_n, exp_lim, enr_fold) for name, group in groups])
+
+    # Close the pool of workers
+    pool.close()
+    pool.join()
+
+    return pd.concat(results)
+
+
