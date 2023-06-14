@@ -110,13 +110,13 @@ def find_cell_cycle_gene_modules(
 
 def make_metacells(
         adata: anndata.AnnData,
-        forbidden_gene_name: list,
+        forbidden_gene_names: list,
         target_umi: int = 160000
 ) -> anndata.AnnData:
     """
     Using metacell2 to create metacells from raw counts of scRNA-seq data
     :param target_umi:
-    :param forbidden_gene_name:
+    :param forbidden_gene_names:
     :param adata: output anndata by find_cell_cycle_gene_modules, no genes with all-zero expression, no MT genes
     :return: an anndata object with metacell information, each cell is still a single cell at this point
     """
@@ -129,7 +129,7 @@ def make_metacells(
     mc.pl.divide_and_conquer_pipeline(adata,
                                       min_target_pile_size=5000,
                                       max_target_pile_size=12000,
-                                      forbidden_gene_names=forbidden_gene_name,
+                                      forbidden_gene_names=forbidden_gene_names,
                                       random_seed=123456)
 
     return adata
@@ -317,3 +317,57 @@ def plot_num_cell_type_sc_per_metacell(
     plt.title("Number of cell types of single cells per metacell")
 
     return plot
+
+
+def make_metacells_one_cell_type(adata: anndata.AnnData,
+                                 cell_type_now: str,
+                                 annotation_col: str,
+                                 forbidden_gene_names: list,
+                                 target_umi: int = 160000) -> anndata.AnnData:
+
+    adata_now = adata[adata.obs[annotation_col] == cell_type_now, :]
+
+    max_parallel_piles = mc.pl.guess_max_parallel_piles(adata_now)
+    print(f"max parallel piles for metacell calculation = {max_parallel_piles}")
+
+    mc.pl.set_max_parallel_piles(max_parallel_piles)
+    target_pile_size = mc.pl.compute_target_pile_size(adata_now, target_metacell_size=target_umi)
+
+    print(f"target pile size = {target_pile_size}")
+
+    # this function does not return anything
+    mc.pl.divide_and_conquer_pipeline(adata_now, min_target_pile_size=5000, max_target_pile_size=12000,
+                                      forbidden_gene_names=forbidden_gene_names, random_seed=123456)
+    adata_now_mc = mc.pl.collect_metacells(adata_now, name=cell_type_now)
+    adata_now_mc.obs['cell_type'] = cell_type_now
+    adata_now_mc.obs['cell_name'] = adata_now_mc.obs.apply(lambda row: row.cell_type + "_" + str(row.candidate), axis=1)
+    adata_now_mc.obs_names = adata_now_mc.obs['cell_name'].values
+
+    return adata_now_mc
+
+
+def make_metacells_per_group(adata: anndata.AnnData,
+                            annotation_col: str,
+                            forbidden_gene_names: list,
+                            target_umi: int = 160000) -> anndata.AnnData:
+    all_cell_type_mc_adatas = list()
+    all_feature_genes = list()
+    for cell_type_now in adata.obs[annotation_col].unique():
+        print(f"making metacells for {cell_type_now}")
+        cell_type_now_mc_adata = make_metacells_one_cell_type(adata, cell_type_now, annotation_col,
+                                                              forbidden_gene_names, target_umi=target_umi)
+        feature_genes_now = cell_type_now_mc_adata.var.loc[
+            cell_type_now_mc_adata.var.feature_gene == 1].index.values
+        all_feature_genes.extend(feature_genes_now)
+        all_cell_type_mc_adatas.append(cell_type_now_mc_adata)
+
+    final_mc_adata = ad.concat(all_cell_type_mc_adatas, axis=0, join='outer', merge='same')
+
+    all_feature_genes = set(all_feature_genes)
+
+    final_mc_adata.var['feature_gene'] = False
+
+    final_mc_adata.var.loc[final_mc_adata.var_names.isin(all_feature_genes), 'feature_gene'] = True
+
+    return final_mc_adata
+
