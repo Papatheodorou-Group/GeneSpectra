@@ -57,7 +57,7 @@ def exclude_gene_all_zeros(
     return res_ad
 
 
-@njit
+
 def find_cell_cycle_gene_modules(
         adata: anndata.AnnData,
         genes_mitotic: list,
@@ -107,7 +107,7 @@ def find_cell_cycle_gene_modules(
     return adata, forbidden_gene_names
 
 
-@njit
+
 def make_metacells(
         adata: anndata.AnnData,
         forbidden_gene_name: list,
@@ -174,7 +174,7 @@ def annotate_metacells_by_max(
     :param annotation_sc: dataframe with cell type annotation from collect_metacell_annotations
     :return: metacells anndata object with transferred cell type annotation
     """
-    annotation_sc['sc_count'] = annotation_sc[0]
+    annotation_sc['sc_count'] = annotation_sc['count'].values
     annotation = annotation_sc.query("metacell >= 0") \
         .groupby('metacell').apply(lambda x: x.loc[x['sc_count'].idxmax()]) \
         .reset_index(drop=True)[['metacell', anno_col, 'sc_count']]
@@ -245,7 +245,7 @@ def plot_counts_density(
     return plot
 
 
-@njit
+
 def plot_gene_similarity_module(
         adata: anndata.AnnData,
         module_num: int,
@@ -285,7 +285,7 @@ def plot_num_sc_per_metacell(
     :return:
     """
     plot = plt.axes()
-    plt.hist(annotation_sc.query("metacell >= 0").sc_count, bins=30)
+    plt.hist(annotation_sc.query("metacell >= 0")['count'], bins=30)
     plt.title("Number of single cells per metacell")
 
     return plot
