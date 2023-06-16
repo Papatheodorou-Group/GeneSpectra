@@ -125,7 +125,7 @@ def homology_mapping_ensembl(species_1, species_2, classes_sp1, classes_sp2, bri
     print(f"total genes from {species_2}: {len(set(classes_sp2.gene))}")
     print(f"ensembl homology mapped genes from {species_2}: {unique_genes_mapped_sp2}")
 
-    mapping_both = pd.merge(mapping_sp1, minimum_classes_sp2, left_on='mmusculus_homolog_ensembl_gene', right_on='gene',
+    mapping_both = pd.merge(mapping_sp1, minimum_classes_sp2, left_on=f"{species_2}_homolog_ensembl_gene", right_on='gene',
                             suffixes=(f"_{species_1}", f"_{species_2}"))\
         .drop(columns=['ensembl_gene_id', f"{species_2}_homolog_ensembl_gene"])
 

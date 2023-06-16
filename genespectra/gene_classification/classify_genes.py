@@ -19,6 +19,9 @@ def remove_not_profiled_genes(adata):
     """
     sc.pp.calculate_qc_metrics(adata, log1p=False, inplace=True)
     result_ad = sc.pp.filter_genes(adata, min_counts=1, copy=True)
+    num_not_profiled = adata.shape[1] - result_ad.shape[1]
+    result_ad.uns['num_not_profiled_genes'] = num_not_profiled
+
     return result_ad
 
 
@@ -89,10 +92,10 @@ def remove_low_counts_genes(adata, min_count=1):
     :param min_count: the min_count used in find_low_count_genes
     :return: an anndata object with lowly expressed genes removed, and number of removed genes stored in .uns
     """
-    num_lowly_expressed = adata[:, adata.var[f"never_above_{min_count}"]].shape[1]
+    num_low_counts = adata[:, adata.var[f"never_above_{min_count}"]].shape[1]
     result_ad = adata[:, ~adata.var[f"never_above_{min_count}"]].copy()
-    result_ad.uns['num_lowly_expressed'] = num_lowly_expressed
-    print(f"Removed {num_lowly_expressed} low counts genes")
+    result_ad.uns[f"num_never_above_{min_count}_genes"] = num_low_counts
+    print(f"Removed {num_low_counts} low counts genes")
 
     return result_ad
 
@@ -204,11 +207,10 @@ def prepare_anndata_for_classification(input_ad, anno_col):
     return data
 
 
-def hpa_gene_classification(data: pd.DataFrame,
-                            max_group_n: int = None,
-                            exp_lim: float = 1,
-                            enr_fold: float = 5
-                            ) -> pd.DataFrame:
+def gene_classification(data: pd.DataFrame,
+                        max_group_n: int = None,
+                        exp_lim: float = 0.1,
+                        enr_fold: float = 4) -> pd.DataFrame:
     """
     Core function to run HPA classification of genes, all genes are classified into:
     - Not detected: expression value never above zero
@@ -259,12 +261,11 @@ def hpa_gene_classification(data: pd.DataFrame,
     )
 
     # Expression frequency metrics
-    gene_class_info['n_det'] = data_.groupby('gene')['expression'].apply(lambda x: np.sum(x > 0))
     gene_class_info['n_exp'] = data_.groupby('gene')['expression'].apply(lambda x: np.sum(x >= exp_lim))
     gene_class_info['frac_exp'] = gene_class_info['n_exp'] / data_.groupby('gene')['expression'].count() * 100
-    gene_class_info['tissues_detected'] = data_.loc[data_['expression'] >= exp_lim].groupby('gene')['tissue'].apply(
+    gene_class_info['tissues_expressed'] = data_.loc[data_['expression'] >= exp_lim].groupby('gene')['tissue'].apply(
         lambda x: ';'.join(sorted(x)))
-    gene_class_info['tissues_not_detected'] = data_.loc[data_['expression'] < exp_lim].groupby('gene')['tissue'].apply(
+    gene_class_info['tissues_not_expressed'] = data_.loc[data_['expression'] < exp_lim].groupby('gene')['tissue'].apply(
         lambda x: ';'.join(sorted(x)))
 
     # enrichment limit
@@ -351,7 +352,6 @@ def hpa_gene_classification(data: pd.DataFrame,
     # first satisfied condition option is used when multiple are satisfied
     gene_class_info['spec_category'] = np.select(
         [
-            gene_class_info['n_det'] == 0,
             gene_class_info['n_exp'] == 0,
             (gene_class_info['max_exp'] / gene_class_info['max_2nd_or_lim']) >= enr_fold,
             (gene_class_info['max_exp'] >= gene_class_info['lim']) & (gene_class_info['n_over'] <= max_group_n) & (
@@ -361,7 +361,6 @@ def hpa_gene_classification(data: pd.DataFrame,
             gene_class_info['n_enhanced'] > 1
         ],
         [
-            "not detected",
             "lowly expressed",
             "cell type enriched",
             "group enriched",
@@ -374,20 +373,20 @@ def hpa_gene_classification(data: pd.DataFrame,
     # Dist category
     gene_class_info['dist_category'] = np.select(
         [
-            gene_class_info['frac_exp'] == 100,
-            gene_class_info['frac_exp'] >= 31,
+            gene_class_info['frac_exp'] >= 90,
+            gene_class_info['frac_exp'] >= 50,
+            gene_class_info['frac_exp'] >= 25,
             gene_class_info['n_exp'] > 1,
             gene_class_info['n_exp'] == 1,
             gene_class_info['n_exp'] == 0,
-            gene_class_info['n_det'] == 0
         ],
         [
-            "expressed in all",
-            "expressed in many",
-            "expressed in some",
+            "expressed in over 90%",
+            "expressed in over 50%",
+            "expressed in over 25%",
+            "expressed in less than 25%",
             "expressed in single",
             "lowly expressed",
-            "not detected"
         ],
         default=""
     )
@@ -463,13 +462,13 @@ def batch_dataframe(data, num_gene_batches, random_selection=False, random_seed=
 
 # Define the function that will be applied to each group
 def process_group(group, max_group_n=None, exp_lim=0.01, enr_fold=4):
-    processed_data = hpa_gene_classification(group, max_group_n=max_group_n, exp_lim=exp_lim, enr_fold=enr_fold)
+    processed_data = gene_classification(group, max_group_n=max_group_n, exp_lim=exp_lim, enr_fold=enr_fold)
 
     return processed_data
 
 
 # Your original function that operates on the grouped DataFrame
-def hpa_gene_classification_multiprocess(data, num_gene_batches=10, random_selection=False, random_seed=123,
+def gene_classification_multiprocess(data, num_gene_batches=10, random_selection=False, random_seed=123,
                                          max_group_n=None, exp_lim=0.01, enr_fold=4):
     """
     Multiprocessing to speed up HPA gene classification function
@@ -489,7 +488,8 @@ def hpa_gene_classification_multiprocess(data, num_gene_batches=10, random_selec
     pool = mp.Pool(mp.cpu_count())
 
     # Batch and split the DataFrame into groups based on the specified column
-    df = batch_dataframe(data, num_gene_batches=num_gene_batches, random_selection=random_selection, random_seed=random_seed)
+    df = batch_dataframe(data, num_gene_batches=num_gene_batches, random_selection=random_selection,
+                         random_seed=random_seed)
 
     groups = df.groupby('gene_batch')
 
@@ -501,5 +501,3 @@ def hpa_gene_classification_multiprocess(data, num_gene_batches=10, random_selec
     pool.join()
 
     return pd.concat(results)
-
-
