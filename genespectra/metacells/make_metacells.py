@@ -372,34 +372,30 @@ def make_metacells_per_group(adata: anndata.AnnData,
     return final_mc_adata
 
 
-def sum_expression_by_class(adata, class_key):
+def sum_expression_by_class(adata, annotation_col):
     """
     Aggregate scRNA-seq data by cell class, create a "pseudo-bulk"
     :param adata: input anndata object
-    :param class_key: the column in adata.obs indicating cell groups to combine
+    :param annotation_col: the column in adata.obs indicating cell groups to combine
     :return: an anndata object storing combined counts for each cell group
     """
     # Create a new AnnData object to store the summed expression levels
     summed_adata = anndata.AnnData()
 
-    #  numerical class id does not work
-    adata.obs[class_key] = adata.obs[class_key].astype("str")
+    # numerical class id does not work
+    adata.obs[annotation_col] = adata.obs[annotation_col].astype("str")
 
-    # Iterate over the unique classes in the given class key
-    unique_classes = adata.obs[class_key].unique()
+    # Iterate over the unique classes in the given class key and sum the counts
+    unique_classes = adata.obs[annotation_col].unique()
     for class_value in unique_classes:
-        # Subset the cells belonging to the current class
-        class_cells = adata[adata.obs[class_key] == class_value]
+        class_cells = adata[adata.obs[annotation_col] == class_value]
 
-        # Sum the expression levels across cells in the current class
         summed_expression = class_cells.X.sum(axis=0)
 
-        # Create a temporary AnnData object for the current class
         temp_adata = anndata.AnnData(X=summed_expression.reshape(1, -1))
-        temp_adata.obs[class_key] = class_value
+        temp_adata.obs[annotation_col] = class_value
         temp_adata.obs_names = [class_value]
 
-        # Concatenate the temporary AnnData object with the summed_adata
         if summed_adata.X is None:
             summed_adata = temp_adata
         else:
