@@ -1,7 +1,7 @@
 import plotly.express as px
-from plotly.graph_objs._imshow import Imshow
+from plotly.graph_objects import Figure
 import matplotlib.pyplot as plt
-from matplotlib.axes._axes import Axes
+from matplotlib.axes import Axes
 import seaborn as sns
 sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 import numpy as np
@@ -39,7 +39,7 @@ def plot_mean_var_pie(adata) -> Axes:
     return ax
 
 
-def plot_categories_pie(data) -> Imshow:
+def plot_categories_pie(data) -> Figure:
     """
 
     :param data: the categories output by hpa_gene_classification
@@ -53,7 +53,7 @@ def plot_categories_pie(data) -> Imshow:
     return fig
 
 
-def plot_categories_hist(data) -> Imshow:
+def plot_categories_hist(data) -> Figure:
     fig = px.histogram(data, x='n_exp', color='spec_category', nbins=30,
                        opacity=0.8, barmode='stack')
 

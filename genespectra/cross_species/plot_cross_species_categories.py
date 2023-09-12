@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
 import plotly.express as px
-from plotly.graph_objs._imshow import Imshow
+from plotly.graph_objects import Figure
 
 
-def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2, group_enhanced=False) -> Imshow:
+def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2, group_enhanced=False) -> Figure:
     if not group_enhanced:
         mapping_both.loc[
             mapping_both[f"spec_category_{species_1}"] == 'group enhanced', [f"spec_category_{species_1}"]] = 'enhanced'
@@ -65,7 +65,7 @@ def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2,
     return fig
 
 
-def plot_cross_species_dist_category_heatmap(mapping_both, species_1, species_2) -> Imshow:
+def plot_cross_species_dist_category_heatmap(mapping_both, species_1, species_2) -> Figure:
     df = mapping_both.loc[mapping_both[f"{species_2}_homolog_orthology_type"] == 'ortholog_one2one'].groupby(
         [f"dist_category_{species_1}"])[f"dist_category_{species_2}"] \
         .value_counts().to_frame().reset_index()
