@@ -2,13 +2,7 @@ import scanpy as sc
 import numpy as np
 import pandas as pd
 import warnings
-from numba import njit
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 import multiprocessing as mp
-
-sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 
 
 def remove_not_profiled_genes(adata):
@@ -27,7 +21,7 @@ def remove_not_profiled_genes(adata):
 
 def depth_normalize_counts(adata, target_sum=None):
     """
-    Wrapper of scanpy depth normalisation function
+    Wrapper of scanpy depth normalisation function focusing on size factor normalisation
     Default use size-factor normalisation, size-factor is the average total count
     :param target_sum: target sum normalized count, default the average total count
     :param adata: an anndata object
@@ -39,7 +33,7 @@ def depth_normalize_counts(adata, target_sum=None):
     else:
         print(f"Target total UMI per cell is the average UMI across cells")
     result_ad = sc.pp.normalize_total(adata, target_sum=target_sum, copy=True)
-    print(f"Total UMI count is {result_ad.X.sum(axis=1)[0].round()}")
+    print(f"Total UMI count is normalized to {result_ad.X.sum(axis=1)[0].round()}")
 
     return result_ad
 
@@ -78,6 +72,8 @@ def remove_cell_cycle_genes(adata, cell_cycle_var_col='forbidden_gene'):
     :param cell_cycle_var_col: cell cycle gene column in adata.var, default 'forbidden_gene'
     :return: an anndata object with cell cycle and related genes removed
     """
+    if cell_cycle_var_col not in adata.var.columns:
+        raise KeyError(f"{cell_cycle_var_col} not in adata.var.columns, please fix")
     num_cell_cycle = adata[:, adata.var[cell_cycle_var_col]].shape[1]
     result_ad = adata[:, ~adata.var[cell_cycle_var_col]].copy()
     result_ad.uns['num_cell_cycle_genes'] = num_cell_cycle
@@ -92,6 +88,8 @@ def remove_low_counts_genes(adata, min_count=1):
     :param min_count: the min_count used in find_low_count_genes
     :return: an anndata object with lowly expressed genes removed, and number of removed genes stored in .uns
     """
+    if f"never_above_{min_count}" not in adata.var.columns:
+        raise KeyError(f"never_above_{min_count} not in adata.var.columns, please fix")
     num_low_counts = adata[:, adata.var[f"never_above_{min_count}"]].shape[1]
     result_ad = adata[:, ~adata.var[f"never_above_{min_count}"]].copy()
     result_ad.uns[f"num_never_above_{min_count}_genes"] = num_low_counts
@@ -161,43 +159,11 @@ def subset_to_enhanced_genes():
     print("subset_to_enhanced_genes")
 
 
-def plot_mean_var(adata, mean_ref, var_ref):
-    ax = plt.axes()
-    sns.scatterplot(data=adata.var, x="gene_mean_log1psf", y="gene_var_log1psf", size=1)
-    if mean_ref is not None:
-        plt.axvline(x=mean_ref, color='green', linestyle='--')
-    if var_ref is not None:
-        plt.axhline(y=var_ref, color='green', linestyle='--')
-    return ax
-
-
-def plot_mean_var_pie(adata):
-    if 'low_variance' not in adata.var.columns or 'low_mean' not in adata.var.columns:
-        raise KeyError("low variance and low mean not in adata.var.columns"
-                       "run find_low_variance_genes and find_low_expression_genes on adata")
-
-    low_mean_low_var = adata.var.loc[adata.var.low_variance & adata.var.low_mean, :].shape[0]
-    high_mean_low_var = adata.var.loc[adata.var.low_variance & ~adata.var.low_mean, :].shape[0]
-    high_mean_high_var = adata.var.loc[~adata.var.low_variance & ~adata.var.low_mean, :].shape[0]
-    low_mean_high_var = adata.var.loc[~adata.var.low_variance & adata.var.low_mean, :].shape[0]
-
-    y = np.array([high_mean_high_var, high_mean_low_var, low_mean_high_var, low_mean_low_var])
-    labels = ["high_mean_high_var", "high_mean_low_var", "low_mean_high_var", "low_mean_low_var"]
-    ax = plt.axes()
-    plt.pie(y,
-            labels=labels,
-            autopct='%.1f%%',
-            wedgeprops={'linewidth': 1.0, 'edgecolor': 'white'},
-            textprops={'size': 'medium'})
-    plt.legend(bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=2)
-    return ax
-
-
 def prepare_anndata_for_classification(input_ad, anno_col):
     """
     :param input_ad: an anndata with each cell a metacell, size-factor normalized but not log transformed
     :param anno_col: the column in adata.obs with cell groups information, usually cell type
-    :return:
+    :return: a dataframe in the format of ready to run gene classification
     """
     res = get_group_average(input_ad, anno_col)
     data = res.T.reset_index().rename(columns={"index": "gene"}).melt(id_vars='gene', var_name='tissue',
@@ -222,7 +188,7 @@ def gene_classification(data: pd.DataFrame,
     - Low cell type specificity: none of the above
 
     Number of expressed cell types are also reported
-    :param data:
+    :param data: a dataframe in the format of ready to run gene classification by prepare_anndata_for_classification
     :param exp_lim: the limit of expression, default 1
     :param enr_fold: the fold for enrichment and enhancement
     :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
@@ -348,6 +314,7 @@ def gene_classification(data: pd.DataFrame,
             )
         ),
         axis=1)
+
     # assign gene categories with this order
     # first satisfied condition option is used when multiple are satisfied
     gene_class_info['spec_category'] = np.select(
@@ -445,31 +412,24 @@ def get_group_average(input_ad, anno_col):
 def batch_dataframe(data, num_gene_batches, random_selection=False, random_seed=123):
     if random_selection:
         np.random.seed(random_seed)
-
     unique_genes = data['gene'].unique()
-
     if random_selection:
         np.random.shuffle(unique_genes)
-
     gene_batches = np.random.choice(range(num_gene_batches), len(unique_genes))
-
     gene_batch_mapping = dict(zip(unique_genes, gene_batches))
-
     data['gene_batch'] = data['gene'].map(gene_batch_mapping)
-
     return data
 
 
 # Define the function that will be applied to each group
 def process_group(group, max_group_n=None, exp_lim=0.01, enr_fold=4):
     processed_data = gene_classification(group, max_group_n=max_group_n, exp_lim=exp_lim, enr_fold=enr_fold)
-
     return processed_data
 
 
 # Your original function that operates on the grouped DataFrame
 def gene_classification_multiprocess(data, num_gene_batches=10, random_selection=False, random_seed=123,
-                                         max_group_n=None, exp_lim=0.01, enr_fold=4):
+                                     max_group_n=None, exp_lim=0.01, enr_fold=4):
     """
     Multiprocessing to speed up HPA gene classification function
     Split the genes into num_gene_batches and process them in parallel
@@ -486,18 +446,13 @@ def gene_classification_multiprocess(data, num_gene_batches=10, random_selection
 
     # Create a pool of workers
     pool = mp.Pool(mp.cpu_count())
-
     # Batch and split the DataFrame into groups based on the specified column
     df = batch_dataframe(data, num_gene_batches=num_gene_batches, random_selection=random_selection,
                          random_seed=random_seed)
-
     groups = df.groupby('gene_batch')
-
     # Apply the function to each group in parallel
     results = pool.starmap(process_group, [(group, max_group_n, exp_lim, enr_fold) for name, group in groups])
-
     # Close the pool of workers
     pool.close()
     pool.join()
-
     return pd.concat(results)
