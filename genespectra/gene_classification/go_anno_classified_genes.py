@@ -1,7 +1,14 @@
 import pandas as pd
 import plotly.express as px
 from biomart import BiomartServer
-from classify_genes import GeneClassificationResult
+
+import os
+import sys
+
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+
+from .classify_genes import GeneClassificationResult
 
 
 def go_annotation_ensembl(data: GeneClassificationResult, species,

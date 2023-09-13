@@ -5,7 +5,13 @@ from matplotlib.axes import Axes
 import seaborn as sns
 import numpy as np
 from anndata import AnnData
-from classify_genes import GeneClassificationResult
+import os
+import sys
+
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+
+from .classify_genes import GeneClassificationResult
 
 sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 

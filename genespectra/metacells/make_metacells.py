@@ -2,7 +2,6 @@ import anndata as ad
 import matplotlib.pyplot as plt
 import metacells as mc
 import numpy as np
-from numba import njit
 import os
 import pandas as pd
 import scipy.sparse as sp
