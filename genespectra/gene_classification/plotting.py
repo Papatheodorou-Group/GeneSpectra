@@ -3,11 +3,14 @@ from plotly.graph_objects import Figure
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import seaborn as sns
-sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 import numpy as np
+from anndata import AnnData
+from classify_genes import GeneClassificationResult
+
+sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 
 
-def plot_mean_var(adata, mean_ref, var_ref) -> Axes:
+def plot_mean_var(adata: AnnData, mean_ref, var_ref) -> Axes:
     ax = plt.axes()
     sns.scatterplot(data=adata.var, x="gene_mean_log1psf", y="gene_var_log1psf", size=1)
     if mean_ref is not None:
@@ -17,7 +20,7 @@ def plot_mean_var(adata, mean_ref, var_ref) -> Axes:
     return ax
 
 
-def plot_mean_var_pie(adata) -> Axes:
+def plot_mean_var_pie(adata: AnnData) -> Axes:
     if 'low_variance' not in adata.var.columns or 'low_mean' not in adata.var.columns:
         raise KeyError("low variance and low mean not in adata.var.columns"
                        "run find_low_variance_genes and find_low_expression_genes on adata")
@@ -39,7 +42,7 @@ def plot_mean_var_pie(adata) -> Axes:
     return ax
 
 
-def plot_categories_pie(data) -> Figure:
+def plot_categories_pie(data: GeneClassificationResult) -> Figure:
     """
 
     :param data: the categories output by hpa_gene_classification
@@ -53,7 +56,7 @@ def plot_categories_pie(data) -> Figure:
     return fig
 
 
-def plot_categories_hist(data) -> Figure:
+def plot_categories_hist(data: GeneClassificationResult) -> Figure:
     fig = px.histogram(data, x='n_exp', color='spec_category', nbins=30,
                        opacity=0.8, barmode='stack')
 

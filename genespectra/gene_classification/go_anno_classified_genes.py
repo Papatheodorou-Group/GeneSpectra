@@ -1,9 +1,10 @@
 import pandas as pd
-from biomart import BiomartServer
 import plotly.express as px
+from biomart import BiomartServer
+from classify_genes import GeneClassificationResult
 
 
-def go_annotation_ensembl(data, species,
+def go_annotation_ensembl(data: GeneClassificationResult, species,
                           go_type="molecular_function",
                           go_linkage_type=("experimental", "phylogenetic", "computational", "author", "curator")):
     go_source = {
@@ -53,7 +54,7 @@ def go_annotation_ensembl(data, species,
     return go_terms
 
 
-def plot_categories_go(data, go_terms, go_query):
+def plot_categories_go(data: GeneClassificationResult, go_terms, go_query):
     use_df = go_terms.loc[go_terms.go_id == go_query]
     counts_use = data.loc[data.gene.isin(use_df.ensembl_gene_id)][
         'spec_category'].value_counts().to_frame().reset_index()
