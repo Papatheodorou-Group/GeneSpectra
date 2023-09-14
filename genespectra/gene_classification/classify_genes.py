@@ -42,10 +42,10 @@ def depth_normalize_counts(adata: AnnData, target_sum=None):
         print(f"Target total UMI per cell is {target_sum}")
     else:
         print(f"Target total UMI per cell is the average UMI across cells")
-    result_ad = sc.pp.normalize_total(adata, target_sum=target_sum, copy=True)
-    print(f"Total UMI count is normalized to {result_ad.X.sum(axis=1)[0].round()}")
+    sc.pp.normalize_total(adata, target_sum=target_sum, inplace=True)
+    print(f"Total UMI count is normalized to {adata.X.sum(axis=1)[0].round()}")
 
-    return result_ad
+    return adata
 
 
 def log1p_counts(adata: AnnData):
@@ -479,7 +479,7 @@ def gene_classification_multiprocess(data: ExpressionDataLong, num_gene_batches=
 
     # Create a pool of workers
     pool = mp.Pool(mp.cpu_count())
-    print(f"Multiprocessing with {mp.cpu_count} cores")
+    print(f"Multiprocessing with {mp.cpu_count()} cores")
     # Batch and split the DataFrame into groups based on the specified column
     df = batch_dataframe(data, num_gene_batches=num_gene_batches, random_selection=random_selection,
                          random_seed=random_seed)
