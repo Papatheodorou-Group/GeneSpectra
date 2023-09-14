@@ -1,8 +1,8 @@
 import scanpy as sc
-from src.genespectra.gene_classification.classify_genes import ExpressionDataLong
-from src.genespectra.gene_classification.classify_genes import depth_normalize_counts
-from src.genespectra.gene_classification.classify_genes import gene_classification_multiprocess
-from src.genespectra.metacells.make_metacells import sum_expression_by_class
+from genespectra.gene_classification.classify_genes import ExpressionDataLong
+from genespectra.gene_classification.classify_genes import depth_normalize_counts
+from genespectra.gene_classification.classify_genes import gene_classification_multiprocess
+from genespectra.metacells.make_metacells import sum_expression_by_class
 import click
 
 

@@ -8,7 +8,7 @@ import sys
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 
-from src.genespectra.gene_classification.classify_genes import GeneClassificationResult
+from classify_genes import GeneClassificationResult
 
 
 def go_annotation_ensembl(data: GeneClassificationResult, species,

@@ -11,7 +11,7 @@ import sys
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 
-#from genespectra.gene_classification.classify_genes import GeneClassificationResult
+from classify_genes import GeneClassificationResult
 
 sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 
