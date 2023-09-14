@@ -368,31 +368,34 @@ def make_metacells_per_group(adata: AnnData,
 
 
 class SummedAnnData(AnnData):
-    def __init__(self, summed_adata=None, removed_genes=None):
+    def __init__(self, summed_adata=None, removed_genes=None, removed_min_count=None):
         super().__init__(X=summed_adata.X if summed_adata.X is not None else None,
                          obs=summed_adata.obs if summed_adata.obs is not None else None,
                          var=summed_adata.var if summed_adata.var is not None else None)
 
         self._count_type = "summed_counts"
         self.removed_genes = removed_genes
+        self.removed_min_count = removed_min_count
 
     @property
     def count_type(self):
         return self._count_type
 
     @classmethod
-    def create_from_anndata(cls, adata, annotation_col, removed_genes=None):
+    def create_from_anndata(cls, adata, annotation_col, removed_genes=None, removed_min_count=None):
         summed_adata = sum_expression_by_class(adata=adata, annotation_col=annotation_col)
-        return cls(summed_adata, removed_genes)
+        return cls(summed_adata, removed_genes, removed_min_count)
 
     @classmethod
-    def from_filtered_anndata(cls, filtered_adata, removed_genes=None):
-        return cls(filtered_adata, removed_genes)
+    def from_filtered_anndata(cls, filtered_adata, removed_genes=None, removed_min_count=None):
+        return cls(filtered_adata, removed_genes, removed_min_count)
 
     def filter_low_counts(self, min_count):
-        summed_ad_filtered = sc.pp.filter_genes(self, min_counts=min_count, inplace=False, copy=True)
-        removed_genes = [x for x in self.var_names if x not in summed_ad_filtered.var_names]
+        assert isinstance(min_count, (int, float)), 'min_count should be int or float type'
+        summed_ad_filtered = sc.pp.filter_genes(self, min_counts=min_count, copy=True)
+        removed_genes = [x for x in self.var_names.values if x not in summed_ad_filtered.var_names.values]
         summed_ad_filtered.removed_genes = removed_genes
+        summed_ad_filtered.removed_min_count = min_count
         return SummedAnnData.from_filtered_anndata(summed_ad_filtered, removed_genes)
 
 
