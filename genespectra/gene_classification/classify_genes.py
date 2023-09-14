@@ -193,13 +193,13 @@ class ExpressionDataLong(pd.DataFrame):
         super().__init__(data, columns=columns)  # inherit methods from pandas dataframe
 
     @classmethod
-    def create_from_adata(cls, input_ad, anno_col):
+    def create_from_summed_adata(cls, input_summed_adata, anno_col):
         """
-        :param input_ad: an anndata with each cell a metacell, size-factor normalized but not log transformed
+        :param input_summed_adata: a SummedAnnData object with each cell a metacell, size-factor normalized
         :param anno_col: the column in adata.obs with cell groups information, usually cell type
         :return: an instance of ExpressionDataLong in the format ready to run gene classification
         """
-        res = get_group_average(input_ad, anno_col)
+        res = get_group_average(input_summed_adata, anno_col)
         data = res.T.reset_index().rename(columns={"index": "gene"}).melt(id_vars='gene', var_name='group',
                                                                           value_name='expression')
         return cls(data=data, columns=["gene", "group", "expression"])

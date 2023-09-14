@@ -1,8 +1,6 @@
 import scanpy as sc
 from genespectra.gene_classification.classify_genes import ExpressionDataLong, GeneClassificationResult
-from genespectra.gene_classification.classify_genes import depth_normalize_counts
-from genespectra.gene_classification.classify_genes import gene_classification_multiprocess
-from genespectra.metacells.make_metacells import sum_expression_by_class
+from genespectra.metacells.make_metacells import SummedAnnData
 import click
 
 
@@ -12,19 +10,13 @@ import click
 @click.option('--anno_col', type=str, default=None, help="Cell class annotation column to use in input_h5ad")
 def run_classification_cell_pool(input_h5ad, out_gene_class, anno_col, **kwargs):
     adata = sc.read_h5ad(input_h5ad)
-    summed_adata = sum_expression_by_class(adata, anno_col)
-    # create a separate class for summed_adata
-    # this class should have the aggregated counts, as well as the genes that are removed after normalisation
-    # when running on sum data, since different cell type have a different number of cells,
+    summed_adata = SummedAnnData.create_from_anndata(adata, anno_col)
     # normalize to a fixed size factor
-    ad_norm = depth_normalize_counts(summed_adata, target_sum=1000000)
-    sc.pp.filter_genes(summed_adata, min_counts=1)
-    # remember which genes are removed
+    summed_adata = SummedAnnData.depth_normalize_counts(summed_adata, target_sum=1000000)
+    summed_adata = SummedAnnData.filter_low_counts(summed_adata, min_count=1)
     print(f"running gene classification on {len(summed_adata.var_names.values)} genes")
-
-    data = ExpressionDataLong.create_from_adata(input_ad=ad_norm, anno_col=anno_col)
-
-    result_classes = GeneClassificationResult.create_from_expression_data_long_multiprocess(data, **kwargs)
+    expr_data = ExpressionDataLong.create_from_summed_adata(input_summed_adata=summed_adata, anno_col=anno_col)
+    result_classes = GeneClassificationResult.create_from_expression_data_long_multiprocess(expr_data, **kwargs)
     result_classes.to_csv(out_gene_class)
 
 

@@ -386,17 +386,25 @@ class SummedAnnData(AnnData):
         summed_adata = sum_expression_by_class(adata=adata, annotation_col=annotation_col)
         return cls(summed_adata, removed_genes, removed_min_count)
 
-    @classmethod
-    def from_filtered_anndata(cls, filtered_adata, removed_genes=None, removed_min_count=None):
-        return cls(filtered_adata, removed_genes, removed_min_count)
-
     def filter_low_counts(self, min_count):
         assert isinstance(min_count, (int, float)), 'min_count should be int or float type'
         summed_ad_filtered = sc.pp.filter_genes(self, min_counts=min_count, copy=True)
         removed_genes = [x for x in self.var_names.values if x not in summed_ad_filtered.var_names.values]
         summed_ad_filtered.removed_genes = removed_genes
         summed_ad_filtered.removed_min_count = min_count
-        return SummedAnnData.from_filtered_anndata(summed_ad_filtered, removed_genes)
+        return summed_ad_filtered
+
+    def depth_normalize_counts(self, target_sum=None):
+
+        print("Size factor depth normalize counts")
+        if target_sum is not None:
+            print(f"Target total UMI per cell is {target_sum}")
+        else:
+            print(f"Target total UMI per cell is the average UMI across cells")
+        sc.pp.normalize_total(self, target_sum=target_sum, inplace=True)
+        print(f"Total UMI count is normalized to {self.X.sum(axis=1)[0].round()}")
+
+        return self
 
 
 def sum_expression_by_class(adata, annotation_col):
