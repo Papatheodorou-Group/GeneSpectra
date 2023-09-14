@@ -1,4 +1,3 @@
-import anndata as ad
 import matplotlib.pyplot as plt
 import metacells as mc
 import numpy as np
@@ -10,7 +9,8 @@ from typing import Tuple, List
 
 sns.set_style("white")
 import scanpy as sc
-import anndata
+import anndata as ad
+from anndata import AnnData
 from math import hypot
 from matplotlib.collections import LineCollection
 import warnings
@@ -22,9 +22,9 @@ forbidden_gene_names = []
 
 
 def exclude_mt_genes(
-        adata: anndata.AnnData,
+        adata: AnnData,
         col_use: str = None
-) -> anndata.AnnData:
+) -> AnnData:
     """
     Exclude genes from mitochondria
 
@@ -43,8 +43,8 @@ def exclude_mt_genes(
 
 
 def exclude_gene_all_zeros(
-        adata: anndata.AnnData
-) -> anndata.AnnData:
+        adata: AnnData
+) -> AnnData:
     """
     Exclude genes with all zeros across all cells
     :param adata: an anndata object
@@ -56,12 +56,11 @@ def exclude_gene_all_zeros(
     return res_ad
 
 
-
 def find_cell_cycle_gene_modules(
-        adata: anndata.AnnData,
+        adata: AnnData,
         genes_mitotic: list,
         min_similarity_of_module: float = 0.95
-) -> Tuple[anndata.AnnData, List[int]]:
+) -> Tuple[AnnData, List[int]]:
     """
 
     :param min_similarity_of_module:
@@ -106,12 +105,11 @@ def find_cell_cycle_gene_modules(
     return adata, forbidden_gene_names
 
 
-
 def make_metacells(
-        adata: anndata.AnnData,
+        adata: AnnData,
         forbidden_gene_names: list,
         target_umi: int = 160000
-) -> anndata.AnnData:
+) -> AnnData:
     """
     Using metacell2 to create metacells from raw counts of scRNA-seq data
     :param target_umi:
@@ -135,7 +133,7 @@ def make_metacells(
 
 
 def collect_metacell_annotations(
-        adata: anndata.AnnData,
+        adata: AnnData,
         anno_col: str
 ) -> pd.DataFrame:
     """
@@ -148,9 +146,9 @@ def collect_metacell_annotations(
 
 
 def collect_metacells(
-        adata: anndata.AnnData,
+        adata: AnnData,
         metacells_name: str
-) -> anndata.AnnData:
+) -> AnnData:
     """
 
     :param metacells_name: give metacells dataset a name
@@ -162,10 +160,10 @@ def collect_metacells(
 
 
 def annotate_metacells_by_max(
-        adata: anndata.AnnData,
+        adata: AnnData,
         annotation_sc: pd.DataFrame,
         anno_col: str
-) -> anndata.AnnData:
+) -> AnnData:
     """
 
     :param anno_col: annotation column in annotation_sc
@@ -199,10 +197,10 @@ def summarize_counts():
 
 
 def plot_metacell_umap(
-        adata: anndata.AnnData,
+        adata: AnnData,
         anno_col: str,
         min_dist: float = 0.5
-) -> Tuple[anndata.AnnData, plt.Axes]:
+) -> Tuple[AnnData, plt.Axes]:
     """
 
     :param adata:
@@ -230,7 +228,7 @@ def plot_metacell_umap(
 
 
 def plot_counts_density(
-        adata: anndata.AnnData,
+        adata: AnnData,
 ) -> plt.Axes:
     """
 
@@ -244,9 +242,8 @@ def plot_counts_density(
     return plot
 
 
-
 def plot_gene_similarity_module(
-        adata: anndata.AnnData,
+        adata: AnnData,
         module_num: int,
 ) -> plt.Axes:
     """
@@ -291,7 +288,7 @@ def plot_num_sc_per_metacell(
 
 
 def plot_num_cell_type_sc_per_metacell(
-        metacells_res: anndata.AnnData,
+        metacells_res: AnnData,
         anno_col: str,
 ) -> plt.Axes:
     """
@@ -318,12 +315,11 @@ def plot_num_cell_type_sc_per_metacell(
     return plot
 
 
-def make_metacells_one_cell_type(adata: anndata.AnnData,
+def make_metacells_one_cell_type(adata: AnnData,
                                  cell_type_now: str,
                                  annotation_col: str,
                                  forbidden_gene_names: list,
-                                 target_umi: int = 160000) -> anndata.AnnData:
-
+                                 target_umi: int = 160000) -> AnnData:
     adata_now = adata[adata.obs[annotation_col] == cell_type_now, :]
 
     max_parallel_piles = mc.pl.guess_max_parallel_piles(adata_now)
@@ -345,10 +341,10 @@ def make_metacells_one_cell_type(adata: anndata.AnnData,
     return adata_now_mc
 
 
-def make_metacells_per_group(adata: anndata.AnnData,
-                            annotation_col: str,
-                            forbidden_gene_names: list,
-                            target_umi: int = 160000) -> anndata.AnnData:
+def make_metacells_per_group(adata: AnnData,
+                             annotation_col: str,
+                             forbidden_gene_names: list,
+                             target_umi: int = 160000) -> AnnData:
     all_cell_type_mc_adatas = list()
     all_feature_genes = list()
     for cell_type_now in adata.obs[annotation_col].unique():
@@ -371,6 +367,35 @@ def make_metacells_per_group(adata: anndata.AnnData,
     return final_mc_adata
 
 
+class SummedAnnData(AnnData):
+    def __init__(self, summed_adata=None, removed_genes=None):
+        super().__init__(X=summed_adata.X if summed_adata.X is not None else None,
+                         obs=summed_adata.obs if summed_adata.obs is not None else None,
+                         var=summed_adata.var if summed_adata.var is not None else None)
+
+        self._count_type = "summed_counts"
+        self.removed_genes = removed_genes
+
+    @property
+    def count_type(self):
+        return self._count_type
+
+    @classmethod
+    def create_from_anndata(cls, adata, annotation_col, removed_genes=None):
+        summed_adata = sum_expression_by_class(adata=adata, annotation_col=annotation_col)
+        return cls(summed_adata, removed_genes)
+
+    @classmethod
+    def from_filtered_anndata(cls, filtered_adata, removed_genes=None):
+        return cls(filtered_adata, removed_genes)
+
+    def filter_low_counts(self, min_count):
+        summed_ad_filtered = sc.pp.filter_genes(self, min_counts=min_count, inplace=False, copy=True)
+        removed_genes = [x for x in self.var_names if x not in summed_ad_filtered.var_names]
+        summed_ad_filtered.removed_genes = removed_genes
+        return SummedAnnData.from_filtered_anndata(summed_ad_filtered, removed_genes)
+
+
 def sum_expression_by_class(adata, annotation_col):
     """
     Aggregate scRNA-seq data by cell class, create a "pseudo-bulk"
@@ -379,7 +404,7 @@ def sum_expression_by_class(adata, annotation_col):
     :return: an anndata object storing combined counts for each cell group
     """
     # Create a new AnnData object to store the summed expression levels
-    summed_adata = anndata.AnnData()
+    summed_adata = AnnData()
 
     # numerical class id does not work
     adata.obs[annotation_col] = adata.obs[annotation_col].astype("str")
@@ -391,14 +416,14 @@ def sum_expression_by_class(adata, annotation_col):
 
         summed_expression = class_cells.X.sum(axis=0)
 
-        temp_adata = anndata.AnnData(X=summed_expression.reshape(1, -1))
+        temp_adata = AnnData(X=summed_expression.reshape(1, -1))
         temp_adata.obs[annotation_col] = class_value
         temp_adata.obs_names = [class_value]
 
         if summed_adata.X is None:
             summed_adata = temp_adata
         else:
-            summed_adata = anndata.concat([summed_adata, temp_adata])
+            summed_adata = ad.concat([summed_adata, temp_adata])
 
     summed_adata.var = adata.var
 

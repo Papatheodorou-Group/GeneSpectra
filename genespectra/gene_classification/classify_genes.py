@@ -15,6 +15,8 @@ from anndata import AnnData
 """
 Clean up input expression data 
 """
+
+
 def remove_not_profiled_genes(adata: AnnData):
     """
     Filter genes that only have zeros across all cells i.e. at least one count
@@ -172,6 +174,8 @@ def subset_to_enhanced_genes():
 """
 Gene classification 
 """
+
+
 def get_group_average(input_ad: AnnData, anno_col):
     input_ad.obs[anno_col] = input_ad.obs[anno_col].astype('category')
     res = pd.DataFrame(columns=input_ad.var_names, index=input_ad.obs[anno_col].cat.categories)
@@ -209,6 +213,28 @@ class GeneClassificationResult(pd.DataFrame):
     def create_from_expression_data_long(cls, data: ExpressionDataLong, max_group_n=None, exp_lim=0.1, enr_fold=4):
         gene_classification_data = gene_classification(data, max_group_n, exp_lim, enr_fold)
         return cls(data=gene_classification_data)
+
+    @classmethod
+    def create_from_expression_data_long_multiprocess(cls, data: ExpressionDataLong,
+                                                      num_gene_batches=10,
+                                                      random_selection=False,
+                                                      random_seed=123,
+                                                      max_group_n=None, exp_lim=0.01, enr_fold=4,
+                                                      num_process=None):
+        gene_classification_data = gene_classification_multiprocess(data, num_gene_batches=num_gene_batches,
+                                                                    random_selection=random_selection,
+                                                                    random_seed=random_seed,
+                                                                    max_group_n=max_group_n,
+                                                                    exp_lim=exp_lim,
+                                                                    enr_fold=enr_fold,
+                                                                    num_process=num_process)
+        return cls(data=gene_classification_data)
+
+    def count_by_spec_category(self):
+        return self.groupby('spec_category')['spec_category'].count()
+
+    def count_by_dist_category(self):
+        return self.groupby("dist_category")['dist_category'].count()
 
 
 def gene_classification(data: ExpressionDataLong,
@@ -462,7 +488,8 @@ def process_group(group, max_group_n=None, exp_lim=0.01, enr_fold=4):
 
 def gene_classification_multiprocess(data: ExpressionDataLong, num_gene_batches=10, random_selection=False,
                                      random_seed=123,
-                                     max_group_n=None, exp_lim=0.01, enr_fold=4) -> GeneClassificationResult:
+                                     max_group_n=None, exp_lim=0.01, enr_fold=4,
+                                     num_process=None) -> GeneClassificationResult:
     """
     Multiprocessing to speed up HPA gene classification function
     Split the genes into num_gene_batches and process them in parallel
@@ -474,11 +501,17 @@ def gene_classification_multiprocess(data: ExpressionDataLong, num_gene_batches=
     :param exp_lim: the limit of expression, default 1
     :param enr_fold: the fold for enrichment and enhancement
     :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
+    :param num_process: number of processes to run in parallel
     :return: a pd.dataframe containing information and classification of all genes
     """
 
     # Create a pool of workers
-    pool = mp.Pool(mp.cpu_count())
+    if num_process is None:
+        num_pool = mp.cpu_count()
+    else:
+        num_pool = num_process
+
+    pool = mp.Pool(num_pool)
     print(f"Multiprocessing with {mp.cpu_count()} cores")
     # Batch and split the DataFrame into groups based on the specified column
     df = batch_dataframe(data, num_gene_batches=num_gene_batches, random_selection=random_selection,

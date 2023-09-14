@@ -1,5 +1,5 @@
 import scanpy as sc
-from genespectra.gene_classification.classify_genes import ExpressionDataLong
+from genespectra.gene_classification.classify_genes import ExpressionDataLong, GeneClassificationResult
 from genespectra.gene_classification.classify_genes import depth_normalize_counts
 from genespectra.gene_classification.classify_genes import gene_classification_multiprocess
 from genespectra.metacells.make_metacells import sum_expression_by_class
@@ -21,9 +21,10 @@ def run_classification_cell_pool(input_h5ad, out_gene_class, anno_col, **kwargs)
     sc.pp.filter_genes(summed_adata, min_counts=1)
     # remember which genes are removed
     print(f"running gene classification on {len(summed_adata.var_names.values)} genes")
-    data = ExpressionDataLong()
-    data = data.create_from_adata(input_ad=ad_norm, anno_col=anno_col)
-    result_classes = gene_classification_multiprocess(data, **kwargs)
+
+    data = ExpressionDataLong.create_from_adata(input_ad=ad_norm, anno_col=anno_col)
+
+    result_classes = GeneClassificationResult.create_from_expression_data_long_multiprocess(data, **kwargs)
     result_classes.to_csv(out_gene_class)
 
 
