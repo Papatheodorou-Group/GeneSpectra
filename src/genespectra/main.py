@@ -1,20 +1,16 @@
-import numpy as np
-import pandas as pd
 import scanpy as sc
-
-import cProfile
 
 import os
 
 directory_of_this_script = os.path.dirname(os.path.abspath(__file__))
 print(directory_of_this_script)
 
-from genespectra.gene_classification.classify_genes import remove_not_profiled_genes
-from genespectra.gene_classification.classify_genes import remove_cell_cycle_genes
-from genespectra.gene_classification.classify_genes import remove_low_counts_genes
-from genespectra.gene_classification.classify_genes import depth_normalize_counts
-from genespectra.gene_classification.classify_genes import find_low_count_genes
-from genespectra.gene_classification.classify_genes import hpa_gene_classification
+from src.genespectra.gene_classification.classify_genes import remove_not_profiled_genes
+from src.genespectra.gene_classification.classify_genes import remove_cell_cycle_genes
+from src.genespectra.gene_classification.classify_genes import remove_low_counts_genes
+from src.genespectra.gene_classification.classify_genes import depth_normalize_counts
+from src.genespectra.gene_classification.classify_genes import find_low_count_genes
+from src.genespectra.gene_classification.classify_genes import hpa_gene_classification
 
 
 

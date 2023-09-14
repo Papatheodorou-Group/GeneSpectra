@@ -11,7 +11,7 @@ import sys
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 
-from genespectra.gene_classification.classify_genes import GeneClassificationResult
+#from genespectra.gene_classification.classify_genes import GeneClassificationResult
 
 sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 
@@ -48,7 +48,7 @@ def plot_mean_var_pie(adata: AnnData) -> Axes:
     return ax
 
 
-def plot_categories_pie(data: GeneClassificationResult) -> Figure:
+def plot_categories_pie(data) -> Figure:
     """
 
     :param data: the categories output by hpa_gene_classification
@@ -62,7 +62,7 @@ def plot_categories_pie(data: GeneClassificationResult) -> Figure:
     return fig
 
 
-def plot_categories_hist(data: GeneClassificationResult) -> Figure:
+def plot_categories_hist(data) -> Figure:
     fig = px.histogram(data, x='n_exp', color='spec_category', nbins=30,
                        opacity=0.8, barmode='stack')
 
