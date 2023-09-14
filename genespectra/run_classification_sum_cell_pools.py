@@ -13,10 +13,11 @@ import click
 def run_classification_cell_pool(input_h5ad, out_gene_class, anno_col, **kwargs):
     adata = sc.read_h5ad(input_h5ad)
     summed_adata = sum_expression_by_class(adata, anno_col)
-
     # when running on sum data, since different cell type have a different number of cells,
     # normalize to a fixed size factor
     ad_norm = depth_normalize_counts(summed_adata, target_sum=1000000)
+    sc.pp.filter_genes(summed_adata, min_counts=1)
+    print(f"running gene classification on {len(summed_adata.var_names.values)} genes")
     data = ExpressionDataLong()
     data = data.create_from_adata(input_ad=ad_norm, anno_col=anno_col)
     result_classes = gene_classification_multiprocess(data, **kwargs)
