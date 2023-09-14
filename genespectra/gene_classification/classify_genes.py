@@ -442,7 +442,8 @@ Multiprocessing related
 """
 
 
-def batch_dataframe(data: ExpressionDataLong, num_gene_batches=10, random_selection=False, random_seed=123):
+def batch_dataframe(data: ExpressionDataLong, num_gene_batches=10, random_selection=False, random_seed=123) -> \
+        ExpressionDataLong:
     unique_genes = data['gene'].unique()
     if random_selection:
         np.random.seed(random_seed)
@@ -459,10 +460,9 @@ def process_group(group, max_group_n=None, exp_lim=0.01, enr_fold=4):
     return processed_data
 
 
-# Your original function that operates on the grouped DataFrame
 def gene_classification_multiprocess(data: ExpressionDataLong, num_gene_batches=10, random_selection=False,
                                      random_seed=123,
-                                     max_group_n=None, exp_lim=0.01, enr_fold=4):
+                                     max_group_n=None, exp_lim=0.01, enr_fold=4) -> GeneClassificationResult:
     """
     Multiprocessing to speed up HPA gene classification function
     Split the genes into num_gene_batches and process them in parallel
@@ -490,4 +490,5 @@ def gene_classification_multiprocess(data: ExpressionDataLong, num_gene_batches=
     # Close the pool of workers
     pool.close()
     pool.join()
+    print("finish gene classification with multiprocessing")
     return pd.concat(results)
