@@ -200,6 +200,8 @@ class ExpressionDataLong(pd.DataFrame):
         :return: an instance of ExpressionDataLong in the format ready to run gene classification
         """
         res = get_group_average(input_summed_adata, anno_col)
+        if res.columns.name is None:
+            res.columns.name = 'feature_name'
         data = res.T.reset_index().rename(columns={res.columns.name: "gene"}).melt(id_vars='gene', var_name='group',
                                                                           value_name='expression')
         return cls(data=data, columns=["gene", "group", "expression"])
