@@ -30,10 +30,14 @@ def go_annotation_ensembl(data: GeneClassificationResult, species,
 
     dataset = server.datasets[f"{species}_gene_ensembl"]
 
+    print("fetching ENSEMBL annotation url...")
+
     response = dataset.search({
         "query": data.gene.tolist(),
         "attributes": columns
     })
+
+    print("Downloading ENSEMBL annotation table...")
 
     eg2_go = pd.read_csv(response.url, sep='\t', header=None, names=columns)
 
