@@ -65,12 +65,15 @@ def go_annotation_ensembl(data: GeneClassificationResult, species,
     return go_terms
 
 
-def plot_categories_go(data: GeneClassificationResult, go_terms, go_query):
+def plot_categories_go(data: GeneClassificationResult,
+                       go_terms,
+                       go_query,
+                       column_name='external_gene_name'):
     use_df = go_terms.loc[go_terms.go_id == go_query]
-    counts_use = data.loc[data.gene.isin(use_df.ensembl_gene_id)][
+    counts_use = data.loc[data.gene.isin(use_df[column_name])][
         'spec_category'].value_counts().to_frame().reset_index()
     fig = px.pie(counts_use, values='spec_category', names='index',
-                 title=f"Human heart gene classes {use_df.name_1006.unique()[0]}")
+                 title=f"Gene classes {use_df.name_1006.unique()[0]}")
     fig.show()
 
     return fig
