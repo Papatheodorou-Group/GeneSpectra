@@ -48,29 +48,37 @@ def plot_mean_var_pie(adata: AnnData) -> Axes:
     return ax
 
 
-def plot_categories_pie(data, title) -> Figure:
+def plot_categories_pie(data, kind='spec_category', title=None) -> Figure:
     """
 
     :param data: the categories output by hpa_gene_classification
+    :param kind: the kind of category to plot, choose between spec_category (default) and dist_category
     :param title: title of the plot, usually the species and dataset name
     :return: a plotly.graph_objects.Figure of Pie plot
     """
-    counts = data['spec_category'].value_counts().to_frame().reset_index().rename(
-        columns={"spec_category": "counts", "index": 'gene_category'})
+    if kind not in ('spec_category', 'dist_category'):
+        raise ValueError('kind should be either spec_category or dist_category')
+
+    counts = data[kind].value_counts().to_frame().reset_index().rename(
+        columns={kind: "counts", "index": 'gene_category'})
     fig = px.pie(counts, values='counts', names='gene_category', title=title)
     fig.show()
 
     return fig
 
 
-def plot_categories_hist(data, title) -> Figure:
+def plot_categories_hist(data, kind='spec_category', title=None) -> Figure:
     """
 
     :param data: the categories output by hpa_gene_classification
+    :param kind: the kind of category to plot, choose between spec_category (default) and dist_category
     :param title: title of the plot, usually the species and dataset name
     :return: a plotly.graph_objects.Figure of histogram plot
     """
-    fig = px.histogram(data, x='n_exp', color='spec_category', nbins=30,
+    if kind not in ('spec_category', 'dist_category'):
+        raise ValueError('kind should be either spec_category or dist_category')
+
+    fig = px.histogram(data, x='n_exp', color=kind, nbins=30,
                        opacity=0.8, barmode='stack', title=title)
 
     fig.show()
