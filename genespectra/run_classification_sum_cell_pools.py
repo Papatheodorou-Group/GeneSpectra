@@ -13,6 +13,7 @@ def run_classification_cell_pool(input_h5ad, out_gene_class, anno_col, **kwargs)
     summed_adata = SummedAnnData.create_from_anndata(adata, anno_col)
     # normalize to a fixed size factor
     summed_adata = SummedAnnData.depth_normalize_counts(summed_adata, target_sum=1000000)
+    sc.pp.calculate_qc_metrics(summed_adata, log1p=False, inplace=True)
     summed_adata = SummedAnnData.filter_low_counts(summed_adata, min_count=1)
     print(f"running gene classification on {len(summed_adata.var_names.values)} genes")
     expr_data = ExpressionDataLong.create_from_summed_adata(input_summed_adata=summed_adata, anno_col=anno_col)
