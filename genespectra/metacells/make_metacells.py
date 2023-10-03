@@ -438,4 +438,7 @@ def sum_expression_by_class(adata, annotation_col):
 
     summed_adata.var = adata.var
 
+    # required for sc.pp.calculate_qc_metrics
+    summed_adata.X = np.array(summed_adata.X)
+
     return summed_adata
