@@ -48,23 +48,30 @@ def plot_mean_var_pie(adata: AnnData) -> Axes:
     return ax
 
 
-def plot_categories_pie(data) -> Figure:
+def plot_categories_pie(data, title) -> Figure:
     """
 
     :param data: the categories output by hpa_gene_classification
-    :return: a plotly.graph_objects.Figure
+    :param title: title of the plot, usually the species and dataset name
+    :return: a plotly.graph_objects.Figure of Pie plot
     """
     counts = data['spec_category'].value_counts().to_frame().reset_index().rename(
         columns={"spec_category": "counts", "index": 'gene_category'})
-    fig = px.pie(counts, values='counts', names='gene_category', title='Human heart')
+    fig = px.pie(counts, values='counts', names='gene_category', title=title)
     fig.show()
 
     return fig
 
 
-def plot_categories_hist(data) -> Figure:
+def plot_categories_hist(data, title) -> Figure:
+    """
+
+    :param data: the categories output by hpa_gene_classification
+    :param title: title of the plot, usually the species and dataset name
+    :return: a plotly.graph_objects.Figure of histogram plot
+    """
     fig = px.histogram(data, x='n_exp', color='spec_category', nbins=30,
-                       opacity=0.8, barmode='stack')
+                       opacity=0.8, barmode='stack', title=title)
 
     fig.show()
     return fig
