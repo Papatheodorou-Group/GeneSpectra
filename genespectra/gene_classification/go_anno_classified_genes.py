@@ -82,7 +82,7 @@ def plot_categories_go(data: GeneClassificationResult,
     :param go_query: the query go term of interest, should be a GO id look like GO:0003700
     :param kind: the kind of category to plot, choose between spec_category (default) and dist_category
     :param column_name: the column name to match the 'gene' column in data, ensembl_gene_id or external_gene_name
-    :return a plotly.graph_objects.Figure of Pie plot
+    :return a plotly.graph_objects.Figure of Pie plot, and the data used for the plot
     """
     use_df = go_terms.loc[go_terms.go_id == go_query]
     counts_use = data.loc[data.gene.isin(use_df[column_name])][kind].value_counts().to_frame().reset_index()
@@ -90,4 +90,4 @@ def plot_categories_go(data: GeneClassificationResult,
                  title=f"Gene classes {use_df.name_1006.unique()[0]}")
     fig.show()
 
-    return fig
+    return fig, data.loc[data.gene.isin(use_df[column_name])][kind]
