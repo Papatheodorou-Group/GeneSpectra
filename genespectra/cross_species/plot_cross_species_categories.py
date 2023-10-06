@@ -4,7 +4,7 @@ import plotly.express as px
 from plotly.graph_objects import Figure
 
 
-def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2, group_enhanced=False) -> Figure:
+def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2, group_enhanced=False):
     if not group_enhanced:
         mapping_both.loc[
             mapping_both[f"spec_category_{species_1}"] == 'group enhanced', [f"spec_category_{species_1}"]] = 'enhanced'
@@ -18,7 +18,7 @@ def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2,
 
     df = mapping_both.loc[mapping_both[f"{species_2}_homolog_orthology_type"] == 'ortholog_one2one'].groupby(
         [f"spec_category_{species_1}"])[f"spec_category_{species_2}"] \
-        .value_counts().to_frame().reset_index()
+        .value_counts().to_frame('count').reset_index()
 
     species1_counts = df.groupby(f"spec_category_{species_1}")['count'].sum()
     species2_counts = df.groupby(f"spec_category_{species_2}")['count'].sum()
@@ -57,12 +57,41 @@ def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2,
     fig = px.imshow(heatmap_data[order].reindex(order), title='One2one orthologs',
                     text_auto=True,
                     width=750, height=600,
-                    labels=dict(x=species_2, y=species_1, color="% overlap"))
+                    labels=dict(x=species_1, y=species_2, color="% sharing"))
     fig['layout']['yaxis']['autorange'] = "reversed"
     fig.update_yaxes(autorange=True)
     fig.show()
 
-    return fig
+    heatmap_data_count = df.pivot(columns=f"spec_category_{species_1}",
+                                  index=f"spec_category_{species_2}",
+                                  values='count')
+
+    heatmap_data_count = np.round(heatmap_data_count.astype("float32"), 4)
+
+    if not group_enhanced:
+
+        order = ['cell type enriched',
+                 'group enriched',
+                 'enhanced',
+                 'low cell type specificity',
+                 'lowly expressed']
+    else:
+        order = ['cell type enriched',
+                 'group enriched',
+                 'cell type enhanced',
+                 'group enhanced',
+                 'low cell type specificity',
+                 'lowly expressed']
+
+    fig2 = px.imshow(heatmap_data_count[order].reindex(order), title='One2one orthologs',
+                     text_auto=True,
+                     width=750, height=600,
+                     labels=dict(x=species_1, y=species_2, color="count"))
+    fig2['layout']['yaxis']['autorange'] = "reversed"
+    fig2.update_yaxes(autorange=True)
+    fig2.show()
+
+    return fig, fig2
 
 
 def plot_cross_species_dist_category_heatmap(mapping_both, species_1, species_2) -> Figure:
