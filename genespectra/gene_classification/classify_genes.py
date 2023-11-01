@@ -11,6 +11,7 @@ import pandas as pd
 import warnings
 import multiprocessing as mp
 from anndata import AnnData
+from scipy.sparse import issparse
 
 """
 Clean up input expression data 
@@ -127,16 +128,18 @@ def choose_mtx_rep(adata: AnnData, use_raw=False, layer=None):
 
 def get_mean_var_disp(adata: AnnData, axis=0):
     mat = choose_mtx_rep(adata, use_raw=False, layer=None)
+    if issparse(mat):
+        mat = mat.todense()
     mean = np.mean(mat, axis=axis, dtype=np.float64)
     mean_sq = np.multiply(mat, mat).mean(axis=axis, dtype=np.float64)
-    var = mean_sq - mean ** 2
+    var = mean_sq - np.array(mean) ** 2
     # enforce R convention (unbiased estimator) for variance
     var *= mat.shape[axis] / (mat.shape[axis] - 1)
     mean[mean == 0] = 1e-12  # set entries equal to zero to small value
     dispersion = var / mean
-    adata.var['gene_mean_log1psf'] = mean
-    adata.var['gene_var_log1psf'] = var
-    adata.var['gene_dispersion_log1psf'] = dispersion
+    adata.var['gene_mean_log1psf'] = mean.T
+    adata.var['gene_var_log1psf'] = var.T
+    adata.var['gene_dispersion_log1psf'] = dispersion.T
 
     return adata
 
@@ -199,6 +202,7 @@ class ExpressionDataLong(pd.DataFrame):
         :param anno_col: the column in adata.obs with cell groups information, usually cell type
         :return: an instance of ExpressionDataLong in the format ready to run gene classification
         """
+        print("Calculating group average of counts from SummedAnnData")
         res = get_group_average(input_summed_adata, anno_col)
         if res.columns.name is None:
             res.columns.name = 'feature_name'
@@ -405,17 +409,15 @@ def gene_classification(data: ExpressionDataLong,
     gene_class_info['dist_category'] = np.select(
         [
             gene_class_info['frac_exp'] >= 90,
-            gene_class_info['frac_exp'] >= 50,
-            gene_class_info['frac_exp'] >= 25,
+            gene_class_info['frac_exp'] >= 30,
             gene_class_info['n_exp'] > 1,
             gene_class_info['n_exp'] == 1,
             gene_class_info['n_exp'] == 0,
         ],
         [
             "expressed in over 90%",
-            "expressed in over 50%",
-            "expressed in over 25%",
-            "expressed in less than 25%",
+            "expressed in over 30%",
+            "expressed in less than 30%",
             "expressed in single",
             "lowly expressed",
         ],

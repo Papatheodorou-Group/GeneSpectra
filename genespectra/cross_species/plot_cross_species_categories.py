@@ -4,7 +4,10 @@ import plotly.express as px
 from plotly.graph_objects import Figure
 
 
-def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2, group_enhanced=False) -> Figure:
+def plot_cross_species_spec_category_heatmap(mapping_tbl, species_1, species_2, group_enhanced=False) -> Figure:
+    
+    mapping_both = mapping_tbl
+    
     if not group_enhanced:
         mapping_both.loc[
             mapping_both[f"spec_category_{species_1}"] == 'group enhanced', [f"spec_category_{species_1}"]] = 'enhanced'
@@ -18,7 +21,7 @@ def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2,
 
     df = mapping_both.loc[mapping_both[f"{species_2}_homolog_orthology_type"] == 'ortholog_one2one'].groupby(
         [f"spec_category_{species_1}"])[f"spec_category_{species_2}"] \
-        .value_counts().to_frame().reset_index()
+        .value_counts().to_frame('count').reset_index()
 
     species1_counts = df.groupby(f"spec_category_{species_1}")['count'].sum()
     species2_counts = df.groupby(f"spec_category_{species_2}")['count'].sum()
@@ -65,8 +68,9 @@ def plot_cross_species_spec_category_heatmap(mapping_both, species_1, species_2,
     return fig
 
 
-def plot_cross_species_dist_category_heatmap(mapping_both, species_1, species_2) -> Figure:
-    df = mapping_both.loc[mapping_both[f"{species_2}_homolog_orthology_type"] == 'ortholog_one2one'].groupby(
+def plot_cross_species_dist_category_heatmap(mapping_tbl, species_1, species_2) -> Figure:
+
+    df = mapping_tbl.loc[mapping_tbl[f"{species_2}_homolog_orthology_type"] == 'ortholog_one2one'].groupby(
         [f"dist_category_{species_1}"])[f"dist_category_{species_2}"] \
         .value_counts().to_frame().reset_index()
 
@@ -89,12 +93,11 @@ def plot_cross_species_dist_category_heatmap(mapping_both, species_1, species_2)
 
     heatmap_data = np.round(heatmap_data.astype("float32"), 4)
 
-    order = ['expressed in over 90%',
-             'expressed in over 50%',
-             'expressed in over 25%',
-             'expressed in less than 25%',
-             'expressed in single',
-             'lowly expressed']
+    order = ["expressed in over 90%",
+            "expressed in over 30%",
+            "expressed in less than 30%",
+            "expressed in single",
+            "lowly expressed"]
 
     fig = px.imshow(heatmap_data[order].reindex(order), title='One2one orthologs',
                     text_auto=True,

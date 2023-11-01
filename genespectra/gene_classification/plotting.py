@@ -16,13 +16,14 @@ from classify_genes import GeneClassificationResult
 sns.set_theme(rc={'figure.dpi': 100, 'figure.figsize': (2, 2)})
 
 
-def plot_mean_var(adata: AnnData, mean_ref, var_ref) -> Axes:
+def plot_mean_var(adata: AnnData, mean_ref=None, var_ref=None) -> Axes:
     ax = plt.axes()
     sns.scatterplot(data=adata.var, x="gene_mean_log1psf", y="gene_var_log1psf", size=1)
     if mean_ref is not None:
         plt.axvline(x=mean_ref, color='green', linestyle='--')
     if var_ref is not None:
         plt.axhline(y=var_ref, color='green', linestyle='--')
+    ax.legend([],[], frameon=False)
     return ax
 
 
