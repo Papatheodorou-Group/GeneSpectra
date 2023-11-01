@@ -276,7 +276,7 @@ def gene_classification(data: ExpressionDataLong,
 
     num_cell_types = len(data['group'].astype('category').cat.categories)
     num_genes = len(data['gene'].astype('category').cat.categories)
-    print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group={max_group_n}\n")
+    print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group={max_group_n}, exp_lim={exp_lim}\n")
 
     data['expression'] = np.round(data['expression'].astype("float32"), 4)
 

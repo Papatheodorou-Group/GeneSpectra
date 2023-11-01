@@ -11,9 +11,14 @@ sys.path.append(file_dir)
 from classify_genes import GeneClassificationResult
 
 
-def go_annotation_ensembl(data: GeneClassificationResult, species,
+def go_annotation_ensembl(data: GeneClassificationResult,
+                          species,
                           go_type="molecular_function",
-                          go_linkage_type=("experimental", "phylogenetic", "computational", "author", "curator")):
+                          go_linkage_type=("experimental",
+                                           "phylogenetic",
+                                           "computational",
+                                           "author",
+                                           "curator")) -> pd.DataFrame:
     go_source = {
         "experimental": ["EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "HTP", "HDA", "HMP", "HGI", "HEP"],
         "phylogenetic": ["IBA", "IBD", "IKR", "IRD"],
@@ -68,12 +73,21 @@ def go_annotation_ensembl(data: GeneClassificationResult, species,
 def plot_categories_go(data: GeneClassificationResult,
                        go_terms,
                        go_query,
-                       column_name='external_gene_name'):
+                       column_name='external_gene_name',
+                       kind='spec_category'):
+    """
+
+    :param data: the categories output by hpa_gene_classification
+    :param go_terms: the go terms table by go_annotation_ensembl
+    :param go_query: the query go term of interest, should be a GO id look like GO:0003700
+    :param kind: the kind of category to plot, choose between spec_category (default) and dist_category
+    :param column_name: the column name to match the 'gene' column in data, ensembl_gene_id or external_gene_name
+    :return a plotly.graph_objects.Figure of Pie plot, and the data used for the plot
+    """
     use_df = go_terms.loc[go_terms.go_id == go_query]
-    counts_use = data.loc[data.gene.isin(use_df[column_name])][
-        'spec_category'].value_counts().to_frame().reset_index()
-    fig = px.pie(counts_use, values='spec_category', names='index',
+    counts_use = data.loc[data.gene.isin(use_df[column_name])][kind].value_counts().to_frame().reset_index()
+    fig = px.pie(counts_use, values=kind, names='index',
                  title=f"Gene classes {use_df.name_1006.unique()[0]}")
     fig.show()
 
-    return fig
+    return fig, data.loc[data.gene.isin(use_df[column_name])][kind]
