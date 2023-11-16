@@ -72,6 +72,8 @@ def find_cell_cycle_gene_modules(
     ## is this correct?
 
     suspect_genes_mask = mc.tl.find_named_genes(adata, names=genes_mitotic)
+
+    print("using adata var_name to match forbidden gene names")
     suspect_gene_names = sorted(adata.var_names[suspect_genes_mask])
 
     print("Find related gene modules")
@@ -337,6 +339,8 @@ def make_metacells_one_cell_type(adata: AnnData,
     adata_now_mc.obs['cell_type'] = cell_type_now
     adata_now_mc.obs['cell_name'] = adata_now_mc.obs.apply(lambda row: row.cell_type + "_" + str(row.candidate), axis=1)
     adata_now_mc.obs_names = adata_now_mc.obs['cell_name'].values
+    # sometimes there will be duplicated 'candidate', not sure why, but just to make the cell names informative I still use the cell_type+candidate as cell names
+    adata_now_mc.obs_names_make_unique()
 
     return adata_now_mc
 
@@ -348,21 +352,46 @@ def make_metacells_per_group(adata: AnnData,
     all_cell_type_mc_adatas = list()
     all_feature_genes = list()
     for cell_type_now in adata.obs[annotation_col].unique():
-        print(f"making metacells for {cell_type_now}")
-        cell_type_now_mc_adata = make_metacells_one_cell_type(adata, cell_type_now, annotation_col,
-                                                              forbidden_gene_names, target_umi=target_umi)
-        feature_genes_now = cell_type_now_mc_adata.var.loc[
-            cell_type_now_mc_adata.var.feature_gene == 1].index.values
-        all_feature_genes.extend(feature_genes_now)
-        all_cell_type_mc_adatas.append(cell_type_now_mc_adata)
 
-    final_mc_adata = ad.concat(all_cell_type_mc_adatas, axis=0, join='outer', merge='same')
+            print(f"making metacells for {cell_type_now}")
+            try:
+                cell_type_now_mc_adata = make_metacells_one_cell_type(adata, cell_type_now, annotation_col,
+                                                                    forbidden_gene_names, target_umi=target_umi)
+
+            except:
+                print(f"making metacells for {cell_type_now} not successful, will create a summed cell instead")
+                cell_type_now_adata = adata[adata.obs[annotation_col] == cell_type_now, :]
+                cell_type_now_summed = cell_type_now_adata.X.sum(axis=0)
+                summed_obs = pd.DataFrame({'grouped': cell_type_now_adata.X.shape[0], # how many single cells in this metacell, int
+                          'pile' : 0,
+                         'cell_type' : cell_type_now,
+                         'cell_name' : cell_type_now})
+                cell_type_now_summed_adata = sc.AnnData(X = np.array(cell_type_now_summed), obs=summed_obs, var=cell_type_now_adata.var)
+                cell_type_now_summed_adata.var['forbidden_gene'] = False
+                cell_type_now_summed_adata.var['feature_gene'] = False
+                all_cell_type_mc_adatas.append(cell_type_now_summed_adata)
+            else:
+                print(f"making metacells for {cell_type_now} successful, adding to total anndatas")
+                feature_genes_now = cell_type_now_mc_adata.var.loc[
+                    cell_type_now_mc_adata.var.feature_gene == 1].index.values
+                all_feature_genes.extend(feature_genes_now)
+                all_cell_type_mc_adatas.append(cell_type_now_mc_adata)
+
+
+    final_mc_adata = sc.concat(all_cell_type_mc_adatas, axis=0, join='outer', merge='same')
+    final_mc_adata.obs_names_make_unique()
 
     all_feature_genes = set(all_feature_genes)
 
     final_mc_adata.var['feature_gene'] = False
+    final_mc_adata.var['forbidden_gene'] = False
 
     final_mc_adata.var.loc[final_mc_adata.var_names.isin(all_feature_genes), 'feature_gene'] = True
+    final_mc_adata.var.loc[final_mc_adata.var_names.isin(forbidden_gene_names), 'forbidden_gene'] = True
+
+    # for writing adata - str to cat can happen
+    final_mc_adata.obs = final_mc_adata.obs.astype(str)
+    final_mc_adata.var = final_mc_adata.var.astype(str)
 
     return final_mc_adata
 
