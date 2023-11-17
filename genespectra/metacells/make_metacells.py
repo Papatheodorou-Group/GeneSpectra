@@ -52,9 +52,9 @@ def exclude_gene_all_zeros(
     :return: an anndata object in which genes with zero counts across all cell types are removed
     """
 
-    res_ad = sc.pp.calculate_qc_metrics(adata, log1p=False, inplace=False)
-    res_ad = sc.pp.filter_genes(adata, min_counts=1, inplace=True)
-    return res_ad
+    sc.pp.calculate_qc_metrics(adata, log1p=False, inplace=True)
+    sc.pp.filter_genes(adata, min_counts=1, inplace=True)
+    return adata
 
 
 def find_cell_cycle_gene_modules(
@@ -364,7 +364,6 @@ def make_metacells_per_group(adata: AnnData,
                 cell_type_now_adata = adata[adata.obs[annotation_col] == cell_type_now, :]
                 cell_type_now_summed = cell_type_now_adata.X.sum(axis=0)
                 summed_obs = pd.DataFrame({'grouped': cell_type_now_adata.X.shape[0], # how many single cells in this metacell, int
-
                                             'pile' : 0,
                                             'cell_type' : cell_type_now,
                                             'cell_name' : cell_type_now}, index=[cell_type_now])
@@ -399,7 +398,7 @@ def make_metacells_per_group(adata: AnnData,
 
 
 class SummedAnnData(AnnData):
-    def __init__(self, summed_adata=None, removed_genes=None, removed_min_count=None):
+    def __init__(self, summed_adata=None, removed_genes=None, removed_min_count=None, removed_min_cells_pct=None):
         super().__init__(X=summed_adata.X if summed_adata.X is not None else None,
                          obs=summed_adata.obs if summed_adata.obs is not None else None,
                          var=summed_adata.var if summed_adata.var is not None else None)
@@ -407,6 +406,7 @@ class SummedAnnData(AnnData):
         self._count_type = "summed_counts"
         self.removed_genes = removed_genes
         self.removed_min_count = removed_min_count
+        self.removed_min_cells_pct = removed_min_cells_pct
 
     @property
     def count_type(self):
@@ -431,18 +431,22 @@ class SummedAnnData(AnnData):
         assert isinstance(min_cells_pct, (int, float)), 'min_cells_pct should be int or float type'
 
         original_genes = self.var_names.values # store the original list of genes for the record
+        num_cells = len(self.obs_names)
 
         if min_count:
             print(f"Genes with min_count {min_count} are considered low count")
-            self = sc.pp.filter_genes(self, min_counts=min_count, inplace=True)
+            sc.pp.filter_genes(self, min_counts=min_count, inplace=True)
         if min_cells_pct:
             print(f"Genes with min_cells_pct {min_cells_pct} are considered low count")
-            min_cells=round(self.obs.shape[0]*min_cells_pct*0.01)
-            self = sc.pp.filter_genes(self, min_cells=min_cells, inplace=True)
+            min_cells=round(num_cells*min_cells_pct*0.01)
+            sc.pp.filter_genes(self, min_cells=min_cells, inplace=True)
 
         removed_genes = [x for x in original_genes if x not in self.var_names.values]
         self.removed_genes = removed_genes
-        self.removed_min_count = min_count
+        if min_count:
+            self.removed_min_count = min_count
+        if min_cells_pct:
+            self.removed_min_cells_pct = min_cells_pct
         print(f"Put {len(removed_genes)} genes into low counts genes")
         return self
 
