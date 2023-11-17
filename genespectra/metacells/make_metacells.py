@@ -53,7 +53,7 @@ def exclude_gene_all_zeros(
     """
 
     res_ad = sc.pp.calculate_qc_metrics(adata, log1p=False, inplace=False)
-    res_ad = sc.pp.filter_genes(adata, min_counts=1, copy=True)
+    res_ad = sc.pp.filter_genes(adata, min_counts=1, inplace=True)
     return res_ad
 
 
@@ -420,7 +420,7 @@ class SummedAnnData(AnnData):
     def filter_low_counts(self, min_count):
         assert isinstance(min_count, (int, float)), 'min_count should be int or float type'
         print(f"Genes with min_count {min_count} are considered low count")
-        summed_ad_filtered = sc.pp.filter_genes(self, min_counts=min_count, copy=True)
+        summed_ad_filtered = sc.pp.filter_genes(self, min_counts=min_count, inplace=True)
         removed_genes = [x for x in self.var_names.values if x not in summed_ad_filtered.var_names.values]
         summed_ad_filtered.removed_genes = removed_genes
         summed_ad_filtered.removed_min_count = min_count
