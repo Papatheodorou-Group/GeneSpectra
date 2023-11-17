@@ -417,15 +417,34 @@ class SummedAnnData(AnnData):
         summed_adata = sum_expression_by_class(adata=adata, annotation_col=annotation_col)
         return cls(summed_adata, removed_genes, removed_min_count)
 
-    def filter_low_counts(self, min_count):
+    def filter_low_counts(self, min_count=1, min_cells_pct=10):
+        """_summary_
+
+        :param min_count: _description_, defaults to 1
+        :type min_count: int, optional
+        :param pct_detected: _description_, defaults to 10
+        :type pct_detected: int, optional
+        :return: _description_
+        :rtype: _type_
+        """
         assert isinstance(min_count, (int, float)), 'min_count should be int or float type'
-        print(f"Genes with min_count {min_count} are considered low count")
-        summed_ad_filtered = sc.pp.filter_genes(self, min_counts=min_count, inplace=True)
-        removed_genes = [x for x in self.var_names.values if x not in summed_ad_filtered.var_names.values]
-        summed_ad_filtered.removed_genes = removed_genes
-        summed_ad_filtered.removed_min_count = min_count
+        assert isinstance(min_cells_pct, (int, float)), 'min_cells_pct should be int or float type'
+
+        original_genes = self.var_names.values # store the original list of genes for the record
+
+        if min_count:
+            print(f"Genes with min_count {min_count} are considered low count")
+            self = sc.pp.filter_genes(self, min_counts=min_count, inplace=True)
+        if min_cells_pct:
+            print(f"Genes with min_cells_pct {min_cells_pct} are considered low count")
+            min_cells=round(self.obs.shape[0]*min_cells_pct*0.01)
+            self = sc.pp.filter_genes(self, min_cells=min_cells, inplace=True)
+
+        removed_genes = [x for x in original_genes if x not in self.var_names.values]
+        self.removed_genes = removed_genes
+        self.removed_min_count = min_count
         print(f"Put {len(removed_genes)} genes into low counts genes")
-        return summed_ad_filtered
+        return self
 
     def depth_normalize_counts(self, target_sum=None):
 
