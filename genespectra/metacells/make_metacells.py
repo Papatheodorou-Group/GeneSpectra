@@ -37,9 +37,10 @@ def exclude_mt_genes(
             f"{col_use} is not in adata.var.columns"
         )
     if col_use is None:
-        return adata[:, ~adata.var_names.str.startswith(tuple(["MT-", "Mt-", "mt-"]))]
+        return adata[:, ~adata.var_names.str.startswith(tuple(["MT-", "Mt-", "mt-"]), na=False)]
     else:
-        return adata[:, ~adata.var[col_use].str.startswith(tuple(["MT-", "Mt-", "mt-"]))]
+        return adata[:, ~adata.var[col_use].str.startswith(tuple(["MT-", "Mt-", "mt-"]), na=False)]
+    # if the column value is nan, return it (do not remove)
 
 
 def exclude_gene_all_zeros(
@@ -363,9 +364,10 @@ def make_metacells_per_group(adata: AnnData,
                 cell_type_now_adata = adata[adata.obs[annotation_col] == cell_type_now, :]
                 cell_type_now_summed = cell_type_now_adata.X.sum(axis=0)
                 summed_obs = pd.DataFrame({'grouped': cell_type_now_adata.X.shape[0], # how many single cells in this metacell, int
-                          'pile' : 0,
-                         'cell_type' : cell_type_now,
-                         'cell_name' : cell_type_now})
+
+                                            'pile' : 0,
+                                            'cell_type' : cell_type_now,
+                                            'cell_name' : cell_type_now}, index=[cell_type_now])
                 cell_type_now_summed_adata = sc.AnnData(X = np.array(cell_type_now_summed), obs=summed_obs, var=cell_type_now_adata.var)
                 cell_type_now_summed_adata.var['forbidden_gene'] = False
                 cell_type_now_summed_adata.var['feature_gene'] = False
