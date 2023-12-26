@@ -355,9 +355,10 @@ def gene_classification(data: ExpressionDataLong,
         ['group']
         .count(),
         axis=1)
+    
 
     gene_class_info['max_2nd_or_lim'] = gene_class_info[['max_2nd', 'lim']].max(axis=1)
-
+    
     # Enhanced genes
     # in some cell types, expression value over enr_fold the mean expression
     gene_class_info['exps_enhanced'] = gene_class_info.apply(
@@ -431,8 +432,9 @@ def gene_classification(data: ExpressionDataLong,
             gene_class_info['spec_category'] == "group enriched",
             gene_class_info['spec_category'].isin(["cell type enhanced", "group enhanced"])
         ],
-        [
-            gene_class_info['max_exp'] / gene_class_info['max_2nd_or_lim'],
+            # for cell tyoe enriched, 2nd is always lower than lim 
+            # therefore use 2nd to calculate enrichment score, which should always be >=4
+            gene_class_info['max_exp'] / gene_class_info['max_2nd'],
             gene_class_info['mean_over'] / gene_class_info['max_under_lim'],
             gene_class_info['max_exp'] / gene_class_info['mean_exp']
         ],
