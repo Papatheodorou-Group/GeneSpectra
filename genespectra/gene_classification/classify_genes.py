@@ -434,7 +434,7 @@ def gene_classification(data: ExpressionDataLong,
         ],
             # for cell tyoe enriched, 2nd is always lower than lim 
             # therefore use 2nd to calculate enrichment score, which should always be >=4
-            gene_class_info['max_exp'] / gene_class_info['max_2nd'],
+        [   gene_class_info['max_exp'] / gene_class_info['max_2nd'],
             gene_class_info['mean_over'] / gene_class_info['max_under_lim'],
             gene_class_info['max_exp'] / gene_class_info['mean_exp']
         ],
