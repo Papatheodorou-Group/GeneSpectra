@@ -216,7 +216,7 @@ class GeneClassificationResult(pd.DataFrame):
         super().__init__(data)
 
     @classmethod
-    def create_from_expression_data_long(cls, data: ExpressionDataLong, max_group_n=None, exp_lim=0.1, enr_fold=4):
+    def create_from_expression_data_long(cls, data: ExpressionDataLong, max_group_n=None, exp_lim=1, enr_fold=4):
         gene_classification_data = gene_classification(data, max_group_n, exp_lim, enr_fold)
         return cls(data=gene_classification_data)
 
@@ -225,7 +225,7 @@ class GeneClassificationResult(pd.DataFrame):
                                                       num_gene_batches=10,
                                                       random_selection=False,
                                                       random_seed=123,
-                                                      max_group_n=None, exp_lim=0.01, enr_fold=4,
+                                                      max_group_n=None, exp_lim=1, enr_fold=4,
                                                       num_process=None):
         gene_classification_data = gene_classification_multiprocess(data, num_gene_batches=num_gene_batches,
                                                                     random_selection=random_selection,

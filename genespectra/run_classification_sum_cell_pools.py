@@ -12,7 +12,7 @@ def run_classification_cell_pool(input_h5ad, out_gene_class, anno_col, **kwargs)
     adata = sc.read_h5ad(input_h5ad)
 
     # simply make pseudobulks, sum by anno_col
-    summed_adata = SummedAnnData.create_from_adata(adata, anno_col=anno_col)
+    summed_adata = SummedAnnData.create_from_anndata(adata, annotation_col=anno_col)
     print(summed_adata)
 
     # normalize to a fixed size factor
