@@ -240,7 +240,7 @@ def plot_counts_density(
     """
     print("plot_counts_density")
     total_umis_of_cells = mc.ut.get_o_numpy(adata, name="__x__", sum=True)
-    plot = sns.distplot(total_umis_of_cells)
+    plot = sns.histplot(total_umis_of_cells, kde=True)
     plot.set(xlabel="UMIs", ylabel="Density", yticks=[])
     return plot
 
@@ -469,22 +469,65 @@ class SummedAnnData(AnnData):
         return self._count_type
 
     @classmethod
-    def create_from_anndata(
-        cls, adata, annotation_col, removed_genes=None, removed_min_count=None
+    def create_from_summing_anndata(
+        cls,
+        adata,
+        annotation_col,
+        removed_genes=None,
+        removed_min_count=None,
+        removed_min_cells_pct=None,
     ):
+        """create an SummedAnnData object from aggregating counts of cells of the same annotation in an AnnData objecy
+
+        :param adata: anndata objecy
+        :type adata: AnnData
+        :param annotation_col: column in adata.obs indicating annotation to use
+        :type annotation_col: str
+        :param removed_genes: initiate for further filtering, defaults to None
+        :type removed_genes: List, optional
+        :param removed_min_cell_pct: initiate for further filtering, defaults to None
+        :type removed_min_cell_pct: float32, optional
+        :param removed_min_count: initiate for further filtering, defaults to None
+        :type removed_min_count: int, optional
+        :return: a SummedAnnData object
+        :rtype: SummedAnnData
+        """
         summed_adata = sum_expression_by_class(
             adata=adata, annotation_col=annotation_col
         )
-        return cls(summed_adata, removed_genes, removed_min_count)
+        return cls(
+            summed_adata, removed_genes, removed_min_count, removed_min_cells_pct
+        )
 
-    def filter_low_counts(self, min_count=1, min_cells_pct=10):
-        """_summary_
+    def create_from_metacells_anndata(
+        cls,
+        adata,
+        removed_genes=None,
+        removed_min_count=None,
+        removed_min_cells_pct=None,
+    ):
+        return cls(adata, removed_genes, removed_min_count, removed_min_cells_pct)
 
-        :param min_count: _description_, defaults to 1
+    def depth_normalize_counts(self, target_sum=None):
+
+        print("Size factor depth normalize counts")
+        if target_sum is not None:
+            print(f"Target total UMI per cell is {target_sum}")
+        else:
+            print(f"Target total UMI per cell is the average UMI across cells")
+        sc.pp.normalize_total(self, target_sum=target_sum, inplace=True)
+        print(f"Total UMI count is normalized to {self.X.sum(axis=1)[0].round()}")
+
+        return self
+
+    def filter_low_counts(self, min_count=1, min_cells_pct=1):
+        """Remove genes that doesn't pass min_count, or doesn't have non-zero counts in min_cells_pct
+
+        :param min_count: minimum count of gene, defaults to 1
         :type min_count: int, optional
-        :param pct_detected: _description_, defaults to 10
+        :param pct_detected: minimum percentage of expression across cells, defaults to 1
         :type pct_detected: int, optional
-        :return: _description_
+        :return: filtered SummedAnnData object with removed_genes, removed_min_count annotated
         :rtype: _type_
         """
         assert isinstance(
@@ -514,18 +557,6 @@ class SummedAnnData(AnnData):
         if min_cells_pct:
             self.removed_min_cells_pct = min_cells_pct
         print(f"Put {len(removed_genes)} genes into low counts genes")
-        return self
-
-    def depth_normalize_counts(self, target_sum=None):
-
-        print("Size factor depth normalize counts")
-        if target_sum is not None:
-            print(f"Target total UMI per cell is {target_sum}")
-        else:
-            print(f"Target total UMI per cell is the average UMI across cells")
-        sc.pp.normalize_total(self, target_sum=target_sum, inplace=True)
-        print(f"Total UMI count is normalized to {self.X.sum(axis=1)[0].round()}")
-
         return self
 
 

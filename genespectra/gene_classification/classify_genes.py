@@ -12,6 +12,8 @@ import warnings
 import multiprocessing as mp
 from anndata import AnnData
 from scipy.sparse import issparse
+from typing import Optional
+from metacells.make_metacells import SummedAnnData
 
 """
 Clean up input expression data 
@@ -27,7 +29,7 @@ def remove_not_profiled_genes(adata: AnnData):
     sc.pp.calculate_qc_metrics(adata, log1p=False, inplace=True)
     result_ad = sc.pp.filter_genes(adata, min_counts=1, copy=True)
     num_not_profiled = adata.shape[1] - result_ad.shape[1]
-    result_ad.uns['num_not_profiled_genes'] = num_not_profiled
+    result_ad.uns["num_not_profiled_genes"] = num_not_profiled
 
     return result_ad
 
@@ -69,7 +71,9 @@ def find_low_count_genes(adata: AnnData, min_count=1):
     :param min_count: minimum count, default 1
     :return: an anndata object with a boolean column in adata.var indicating whether the gene is lowly expressed
     """
-    print(f"find_low_count_genes, never above {min_count} in depth normalized counts across all metacells")
+    print(
+        f"find_low_count_genes, never above {min_count} in depth normalized counts across all metacells"
+    )
     columns = np.where(np.all(adata.X <= min_count, axis=0))[0]
     adata.var[f"never_above_{min_count}"] = False
     adata.var.iloc[columns, -1] = True
@@ -78,7 +82,7 @@ def find_low_count_genes(adata: AnnData, min_count=1):
     return adata
 
 
-def remove_cell_cycle_genes(adata: AnnData, cell_cycle_var_col='forbidden_gene'):
+def remove_cell_cycle_genes(adata: AnnData, cell_cycle_var_col="forbidden_gene"):
     """
     Remove cell cycle genes and genes correlate with cell cycle genes found by metacell
     :param adata: an anndata object with metacell calculated
@@ -89,7 +93,7 @@ def remove_cell_cycle_genes(adata: AnnData, cell_cycle_var_col='forbidden_gene')
         raise KeyError(f"{cell_cycle_var_col} not in adata.var.columns, please fix")
     num_cell_cycle = adata[:, adata.var[cell_cycle_var_col]].shape[1]
     result_ad = adata[:, ~adata.var[cell_cycle_var_col]].copy()
-    result_ad.uns['num_cell_cycle_genes'] = num_cell_cycle
+    result_ad.uns["num_cell_cycle_genes"] = num_cell_cycle
     print(f"Removed {num_cell_cycle} cell cycle and related genes")
     return result_ad
 
@@ -137,35 +141,43 @@ def get_mean_var_disp(adata: AnnData, axis=0):
     var *= mat.shape[axis] / (mat.shape[axis] - 1)
     mean[mean == 0] = 1e-12  # set entries equal to zero to small value
     dispersion = var / mean
-    adata.var['gene_mean_log1psf'] = mean.T
-    adata.var['gene_var_log1psf'] = var.T
-    adata.var['gene_dispersion_log1psf'] = dispersion.T
+    adata.var["gene_mean_log1psf"] = mean.T
+    adata.var["gene_var_log1psf"] = var.T
+    adata.var["gene_dispersion_log1psf"] = dispersion.T
 
     return adata
 
 
 def find_low_variance_genes(adata: AnnData, var_cutoff=0.1):
     print("find_low variance_genes")
-    if 'gene_var_log1psf' not in adata.var.columns:
-        raise KeyError("gene_var_log1psf is not annotated for adata.var, run get_mean_var_disp first")
-    adata.var['low_variance'] = adata.var['gene_var_log1psf'] <= var_cutoff
-    print(adata.var['low_variance'].value_counts())
+    if "gene_var_log1psf" not in adata.var.columns:
+        raise KeyError(
+            "gene_var_log1psf is not annotated for adata.var, run get_mean_var_disp first"
+        )
+    adata.var["low_variance"] = adata.var["gene_var_log1psf"] <= var_cutoff
+    print(adata.var["low_variance"].value_counts())
 
-    if adata.var['low_variance'].sum() == adata.var.shape[0]:
-        warnings.warn("All genes are low variance (var log1psf), consider lowering the var_cutoff")
+    if adata.var["low_variance"].sum() == adata.var.shape[0]:
+        warnings.warn(
+            "All genes are low variance (var log1psf), consider lowering the var_cutoff"
+        )
 
     return adata
 
 
 def find_low_expression_genes(adata: AnnData, mean_cutoff=0.1):
     print("find_low expression_genes")
-    if 'gene_mean_log1psf' not in adata.var.columns:
-        raise KeyError("gene_mean_log1psf is not annotated for adata.var, run get_mean_var_disp first")
-    adata.var['low_mean'] = adata.var['gene_mean_log1psf'] <= mean_cutoff
-    print(adata.var['low_mean'].value_counts())
+    if "gene_mean_log1psf" not in adata.var.columns:
+        raise KeyError(
+            "gene_mean_log1psf is not annotated for adata.var, run get_mean_var_disp first"
+        )
+    adata.var["low_mean"] = adata.var["gene_mean_log1psf"] <= mean_cutoff
+    print(adata.var["low_mean"].value_counts())
 
-    if adata.var['low_mean'].sum() == adata.var.shape[0]:
-        warnings.warn("All genes are low expression (mean log1psf), consider lowering the mean_cutoff")
+    if adata.var["low_mean"].sum() == adata.var.shape[0]:
+        warnings.warn(
+            "All genes are low expression (mean log1psf), consider lowering the mean_cutoff"
+        )
 
     return adata
 
@@ -180,8 +192,10 @@ Gene classification
 
 
 def get_group_average(input_ad: AnnData, anno_col):
-    input_ad.obs[anno_col] = input_ad.obs[anno_col].astype('category')
-    res = pd.DataFrame(columns=input_ad.var_names, index=input_ad.obs[anno_col].cat.categories)
+    input_ad.obs[anno_col] = input_ad.obs[anno_col].astype("category")
+    res = pd.DataFrame(
+        columns=input_ad.var_names, index=input_ad.obs[anno_col].cat.categories
+    )
     for cluster in input_ad.obs[anno_col].cat.categories:
         res.loc[cluster] = input_ad[input_ad.obs[anno_col].isin([cluster]), :].X.mean(0)
     return res
@@ -192,11 +206,15 @@ class ExpressionDataLong(pd.DataFrame):
         if data is None:
             data = {}
         if columns is None:
-            columns = ["gene", "group", "expression"]  # define that the ExpressionDataLong object has these columns
+            columns = [
+                "gene",
+                "group",
+                "expression",
+            ]  # define that the ExpressionDataLong object has these columns
         super().__init__(data, columns=columns)  # inherit methods from pandas dataframe
 
     @classmethod
-    def create_from_summed_adata(cls, input_summed_adata, anno_col):
+    def create_from_summed_adata(cls, input_summed_adata: SummedAnnData, anno_col):
         """
         :param input_summed_adata: a SummedAnnData object with each cell a metacell, size-factor normalized
         :param anno_col: the column in adata.obs with cell groups information, usually cell type
@@ -204,10 +222,14 @@ class ExpressionDataLong(pd.DataFrame):
         """
         print("Calculating group average of counts from SummedAnnData")
         res = get_group_average(input_summed_adata, anno_col)
+        # get average expression profile per metacell of the same type
         if res.columns.name is None:
-            res.columns.name = 'feature_name'
-        data = res.T.reset_index().rename(columns={res.columns.name: "gene"}).melt(id_vars='gene', var_name='group',
-                                                                          value_name='expression')
+            res.columns.name = "feature_name"
+        data = (
+            res.T.reset_index()
+            .rename(columns={res.columns.name: "gene"})
+            .melt(id_vars="gene", var_name="group", value_name="expression")
+        )
         return cls(data=data, columns=["gene", "group", "expression"])
 
 
@@ -216,37 +238,51 @@ class GeneClassificationResult(pd.DataFrame):
         super().__init__(data)
 
     @classmethod
-    def create_from_expression_data_long(cls, data: ExpressionDataLong, max_group_n=None, exp_lim=1, enr_fold=4):
-        gene_classification_data = gene_classification(data, max_group_n, exp_lim, enr_fold)
+    def create_from_expression_data_long(
+        cls, data: ExpressionDataLong, max_group_n=None, exp_lim=1, enr_fold=4
+    ):
+        gene_classification_data = gene_classification(
+            data, max_group_n, exp_lim, enr_fold
+        )
         return cls(data=gene_classification_data)
 
     @classmethod
-    def create_from_expression_data_long_multiprocess(cls, data: ExpressionDataLong,
-                                                      num_gene_batches=10,
-                                                      random_selection=False,
-                                                      random_seed=123,
-                                                      max_group_n=None, exp_lim=1, enr_fold=4,
-                                                      num_process=None):
-        gene_classification_data = gene_classification_multiprocess(data, num_gene_batches=num_gene_batches,
-                                                                    random_selection=random_selection,
-                                                                    random_seed=random_seed,
-                                                                    max_group_n=max_group_n,
-                                                                    exp_lim=exp_lim,
-                                                                    enr_fold=enr_fold,
-                                                                    num_process=num_process)
+    def create_from_expression_data_long_multiprocess(
+        cls,
+        data: ExpressionDataLong,
+        num_gene_batches=10,
+        random_selection=False,
+        random_seed=123,
+        max_group_n=None,
+        exp_lim=1,
+        enr_fold=4,
+        num_process=None,
+    ):
+        gene_classification_data = gene_classification_multiprocess(
+            data,
+            num_gene_batches=num_gene_batches,
+            random_selection=random_selection,
+            random_seed=random_seed,
+            max_group_n=max_group_n,
+            exp_lim=exp_lim,
+            enr_fold=enr_fold,
+            num_process=num_process,
+        )
         return cls(data=gene_classification_data)
 
     def count_by_spec_category(self):
-        return self.groupby('spec_category')['spec_category'].count()
+        return self.groupby("spec_category")["spec_category"].count()
 
     def count_by_dist_category(self):
-        return self.groupby("dist_category")['dist_category'].count()
+        return self.groupby("dist_category")["dist_category"].count()
 
 
-def gene_classification(data: ExpressionDataLong,
-                        max_group_n: int = None,
-                        exp_lim: float = 0.1,
-                        enr_fold: float = 4) -> GeneClassificationResult:
+def gene_classification(
+    data: ExpressionDataLong,
+    max_group_n: Optional[int] = None,
+    exp_lim: float = 1,
+    enr_fold: float = 4,
+) -> GeneClassificationResult:
     """
     Core function to run HPA classification of genes, all genes are classified into:
     - Not detected: expression value never above zero
@@ -259,161 +295,191 @@ def gene_classification(data: ExpressionDataLong,
 
     Number of expressed cell types are also reported
     :param data: a dataframe in the format of ready to run gene classification by prepare_anndata_for_classification
-    :param exp_lim: the limit of expression, default 1
+    :param exp_lim: the limit of expression value to be considered lowly expressed, default 1, note that this depend on the size-factor normalization
     :param enr_fold: the fold for enrichment and enhancement
     :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
     :return: a pd.dataframe containing information and classification of all genes
     """
     print("Running HPA gene classification \n")
 
-    gene_col = 'gene'
-    group_col = 'group'
+    gene_col = "gene"
+    group_col = "group"
 
     # by default, max groups is at most 50% of the number of groups
 
     if max_group_n is None:
-        max_group_n = np.floor(len(data['group'].astype('category').cat.categories) / 2)
+        max_group_n = np.floor(len(data["group"].astype("category").cat.categories) / 2)
 
-    num_cell_types = len(data['group'].astype('category').cat.categories)
-    num_genes = len(data['gene'].astype('category').cat.categories)
-    print(f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group={max_group_n}, exp_lim={exp_lim}, enr_fold={enr_fold}\n")
+    num_cell_types = len(data["group"].astype("category").cat.categories)
+    num_genes = len(data["gene"].astype("category").cat.categories)
 
-    data['expression'] = np.round(data['expression'].astype("float32"), 4)
+    print(
+        f"num cell types = {num_cell_types}, num_genes = {num_genes}, max_group={max_group_n}, exp_lim={exp_lim}, enr_fold={enr_fold}\n"
+    )
 
-    if data['expression'].isna().any():
+    data["expression"] = np.round(data["expression"].astype("float32"), 4)
+
+    if data["expression"].isna().any():
         raise ValueError("NAs in expression column")
     if data[gene_col].isna().any():
         raise ValueError("NAs in gene column")
     if data[group_col].isna().any():
         raise ValueError("NAs in group column")
 
-    gene_class_info = data.groupby('gene').agg(
-        mean_exp=('expression', np.mean),
-        min_exp=('expression', np.min),
-        max_exp=('expression', np.max),
-        max_2nd=('expression', lambda x: np.sort(x)[len(x) - 2])
+    gene_class_info = data.groupby("gene").agg(
+        mean_exp=("expression", np.mean),
+        min_exp=("expression", np.min),
+        max_exp=("expression", np.max),
+        max_2nd=("expression", lambda x: np.sort(x)[len(x) - 2]),
     )
 
     # Expression frequency metrics
-    gene_class_info['n_exp'] = data.groupby('gene')['expression'].apply(lambda x: np.sum(x >= exp_lim))
-    gene_class_info['frac_exp'] = gene_class_info['n_exp'] / data.groupby('gene')['expression'].count() * 100
-    gene_class_info['groups_expressed'] = data.loc[data['expression'] >= exp_lim].groupby('gene')['group'].apply(
-        lambda x: ';'.join(sorted(x)))
-    gene_class_info['groups_not_expressed'] = data.loc[data['expression'] < exp_lim].groupby('gene')['group'].apply(
-        lambda x: ';'.join(sorted(x)))
+    gene_class_info["n_exp"] = data.groupby("gene")["expression"].apply(
+        lambda x: np.sum(x >= exp_lim)
+    )
+    gene_class_info["frac_exp"] = (
+        gene_class_info["n_exp"] / data.groupby("gene")["expression"].count() * 100
+    )
+    gene_class_info["groups_expressed"] = (
+        data.loc[data["expression"] >= exp_lim]
+        .groupby("gene")["group"]
+        .apply(lambda x: ";".join(sorted(x)))
+    )
+    gene_class_info["groups_not_expressed"] = (
+        data.loc[data["expression"] < exp_lim]
+        .groupby("gene")["group"]
+        .apply(lambda x: ";".join(sorted(x)))
+    )
 
     # enrichment limit
-    gene_class_info['lim'] = gene_class_info['max_exp'] / enr_fold
-    gene_class_info['gene'] = gene_class_info.index
+    gene_class_info["lim"] = gene_class_info["max_exp"] / enr_fold
+    gene_class_info["gene"] = gene_class_info.index
 
-    gene_class_info['exps_over_lim'] = gene_class_info.apply(
+    gene_class_info["exps_over_lim"] = gene_class_info.apply(
         lambda row: list(
             data.loc[
-                (data['gene'] == row['gene']) &
-                (data['expression'] >= row['lim']) &
-                (data['expression'] >= exp_lim)
-                ]['expression']
+                (data["gene"] == row["gene"])
+                & (data["expression"] >= row["lim"])
+                & (data["expression"] >= exp_lim)
+            ]["expression"]
         ),
-        axis=1)
+        axis=1,
+    )
 
     # Enriched genes
     # single cell type or group average enr_fold larger than any other cell type
-    gene_class_info['n_over'] = gene_class_info['exps_over_lim'].apply(lambda x: len(x))
-    gene_class_info['mean_over'] = gene_class_info['exps_over_lim'].apply(lambda x: np.mean(x))
-    gene_class_info['min_over'] = gene_class_info.apply(
-        lambda row: np.min(row['exps_over_lim']) if row['n_over'] > 0 else np.nan, axis=1)
+    gene_class_info["n_over"] = gene_class_info["exps_over_lim"].apply(lambda x: len(x))
+    gene_class_info["mean_over"] = gene_class_info["exps_over_lim"].apply(
+        lambda x: np.mean(x)
+    )
+    gene_class_info["min_over"] = gene_class_info.apply(
+        lambda row: np.min(row["exps_over_lim"]) if row["n_over"] > 0 else np.nan,
+        axis=1,
+    )
 
-    gene_class_info['max_under_lim'] = gene_class_info.apply(
+    gene_class_info["max_under_lim"] = gene_class_info.apply(
         lambda row: np.maximum(
             np.max(
                 data.loc[
-                    (data['gene'] == row['gene']) &
-                    (data['expression'] < row['min_over'])
-                    ]['expression']
+                    (data["gene"] == row["gene"])
+                    & (data["expression"] < row["min_over"])
+                ]["expression"]
             ),
-            exp_lim * 0.1
+            exp_lim * 0.1,
         ),
-        axis=1)
+        axis=1,
+    )
 
-    gene_class_info['enrichment_group'] = gene_class_info.apply(
-        lambda row: ';'.join(
+    gene_class_info["enrichment_group"] = gene_class_info.apply(
+        lambda row: ";".join(
             sorted(
                 data.loc[
-                    (data['gene'] == row['gene']) &
-                    (data['expression'] >= row['lim']) &
-                    (data['expression'] >= exp_lim)]
-                ['group']
+                    (data["gene"] == row["gene"])
+                    & (data["expression"] >= row["lim"])
+                    & (data["expression"] >= exp_lim)
+                ]["group"]
             )
         ),
-        axis=1)
+        axis=1,
+    )
 
-    gene_class_info['n_enriched'] = gene_class_info.apply(
+    gene_class_info["n_enriched"] = gene_class_info.apply(
         lambda row: data.loc[
-            (data['gene'] == row['gene']) &
-            (data['expression'] >= row['lim']) &
-            (data['expression'] >= exp_lim)]
-        ['group']
-        .count(),
-        axis=1)
-    
+            (data["gene"] == row["gene"])
+            & (data["expression"] >= row["lim"])
+            & (data["expression"] >= exp_lim)
+        ]["group"].count(),
+        axis=1,
+    )
 
-    gene_class_info['max_2nd_or_lim'] = gene_class_info[['max_2nd', 'lim']].max(axis=1)
-    
+    gene_class_info["max_2nd_or_lim"] = gene_class_info[["max_2nd", "lim"]].max(axis=1)
+
     # Enhanced genes
     # in some cell types, expression value over enr_fold the mean expression
-    gene_class_info['exps_enhanced'] = gene_class_info.apply(
+    gene_class_info["exps_enhanced"] = gene_class_info.apply(
         lambda row: list(
             data.loc[
-                (data['gene'] == row['gene']) &
-                (data['expression'] / row['mean_exp'] >= enr_fold) &
-                (data['expression'] >= exp_lim)
-                ]['expression']
+                (data["gene"] == row["gene"])
+                & (data["expression"] / row["mean_exp"] >= enr_fold)
+                & (data["expression"] >= exp_lim)
+            ]["expression"]
         ),
-        axis=1)
-    gene_class_info['n_enhanced'] = gene_class_info['exps_enhanced'].apply(lambda x: len(x))
+        axis=1,
+    )
+    gene_class_info["n_enhanced"] = gene_class_info["exps_enhanced"].apply(
+        lambda x: len(x)
+    )
 
-    gene_class_info['enhanced_in'] = gene_class_info['enhanced_in'] = gene_class_info.apply(
-        lambda row: ';'.join(
-            sorted(
-                data.loc[
-                    (data['gene'] == row['gene']) &
-                    (data['expression'] / row['mean_exp'] >= enr_fold) &
-                    (data['expression'] >= exp_lim)
-                    ]['group']
-            )
-        ),
-        axis=1)
+    gene_class_info["enhanced_in"] = gene_class_info["enhanced_in"] = (
+        gene_class_info.apply(
+            lambda row: ";".join(
+                sorted(
+                    data.loc[
+                        (data["gene"] == row["gene"])
+                        & (data["expression"] / row["mean_exp"] >= enr_fold)
+                        & (data["expression"] >= exp_lim)
+                    ]["group"]
+                )
+            ),
+            axis=1,
+        )
+    )
 
     # assign gene categories with this order
     # first satisfied condition option is used when multiple are satisfied
-    gene_class_info['spec_category'] = np.select(
+    gene_class_info["spec_category"] = np.select(
         [
-            gene_class_info['n_exp'] == 0,
-            (gene_class_info['max_exp'] / gene_class_info['max_2nd_or_lim']) >= enr_fold,
-            (gene_class_info['max_exp'] >= gene_class_info['lim']) & (gene_class_info['n_over'] <= max_group_n) & (
-                    gene_class_info['n_over'] > 1) & (
-                    (gene_class_info['mean_over'] / gene_class_info['max_under_lim']) >= enr_fold),
-            gene_class_info['n_enhanced'] == 1,
-            gene_class_info['n_enhanced'] > 1
+            gene_class_info["n_exp"] == 0,
+            (gene_class_info["max_exp"] / gene_class_info["max_2nd_or_lim"])
+            >= enr_fold,
+            (gene_class_info["max_exp"] >= gene_class_info["lim"])
+            & (gene_class_info["n_over"] <= max_group_n)
+            & (gene_class_info["n_over"] > 1)
+            & (
+                (gene_class_info["mean_over"] / gene_class_info["max_under_lim"])
+                >= enr_fold
+            ),
+            gene_class_info["n_enhanced"] == 1,
+            gene_class_info["n_enhanced"] > 1,
         ],
         [
             "lowly expressed",
             "cell type enriched",
             "group enriched",
             "cell type enhanced",
-            "group enhanced"
+            "group enhanced",
         ],
-        default="low cell type specificity"
+        default="low cell type specificity",
     )
 
     # Dist category
-    gene_class_info['dist_category'] = np.select(
+    gene_class_info["dist_category"] = np.select(
         [
-            gene_class_info['frac_exp'] >= 90,
-            gene_class_info['frac_exp'] >= 30,
-            gene_class_info['n_exp'] > 1,
-            gene_class_info['n_exp'] == 1,
-            gene_class_info['n_exp'] == 0,
+            gene_class_info["frac_exp"] >= 90,
+            gene_class_info["frac_exp"] >= 30,
+            gene_class_info["n_exp"] > 1,
+            gene_class_info["n_exp"] == 1,
+            gene_class_info["n_exp"] == 0,
         ],
         [
             "expressed in over 90%",
@@ -422,48 +488,53 @@ def gene_classification(data: ExpressionDataLong,
             "expressed in single",
             "lowly expressed",
         ],
-        default=""
+        default="",
     )
 
     # Spec score
-    gene_class_info['spec_score'] = np.select(
+    gene_class_info["spec_score"] = np.select(
         [
-            gene_class_info['spec_category'] == "cell type enriched",
-            gene_class_info['spec_category'] == "group enriched",
-            gene_class_info['spec_category'].isin(["cell type enhanced", "group enhanced"])
+            gene_class_info["spec_category"] == "cell type enriched",
+            gene_class_info["spec_category"] == "group enriched",
+            gene_class_info["spec_category"].isin(
+                ["cell type enhanced", "group enhanced"]
+            ),
         ],
-            # for cell tyoe enriched, 2nd is always lower than lim 
-            # therefore use 2nd to calculate enrichment score, which should always be >=4
-        [   gene_class_info['max_exp'] / gene_class_info['max_2nd'],
-            gene_class_info['mean_over'] / gene_class_info['max_under_lim'],
-            gene_class_info['max_exp'] / gene_class_info['mean_exp']
+        # for cell tyoe enriched, 2nd is always lower than lim
+        # therefore use 2nd to calculate enrichment score, which should always be >=4
+        [
+            gene_class_info["max_exp"] / gene_class_info["max_2nd"],
+            gene_class_info["mean_over"] / gene_class_info["max_under_lim"],
+            gene_class_info["max_exp"] / gene_class_info["mean_exp"],
         ],
-        default=0.0
+        default=0.0,
     )
 
     result = gene_class_info.assign(
         enriched_groups=np.select(
             [
-                gene_class_info['spec_category'].isin(["cell type enriched", "group enriched"]),
-                gene_class_info['spec_category'].isin(["cell type enhanced", "group enhanced"])
+                gene_class_info["spec_category"].isin(
+                    ["cell type enriched", "group enriched"]
+                ),
+                gene_class_info["spec_category"].isin(
+                    ["cell type enhanced", "group enhanced"]
+                ),
             ],
-            [
-                gene_class_info['enrichment_group'],
-                gene_class_info['enhanced_in']
-            ],
-            default=""
+            [gene_class_info["enrichment_group"], gene_class_info["enhanced_in"]],
+            default="",
         ),
         n_enriched=np.select(
             [
-                gene_class_info['spec_category'].isin(["cell type enriched", "group enriched"]),
-                gene_class_info['spec_category'].isin(["cell type enhanced", "group enhanced"])
+                gene_class_info["spec_category"].isin(
+                    ["cell type enriched", "group enriched"]
+                ),
+                gene_class_info["spec_category"].isin(
+                    ["cell type enhanced", "group enhanced"]
+                ),
             ],
-            [
-                gene_class_info['n_enriched'],
-                gene_class_info['n_enhanced']
-            ],
-            default=0
-        )
+            [gene_class_info["n_enriched"], gene_class_info["n_enhanced"]],
+            default=0,
+        ),
     )
 
     return result
@@ -474,28 +545,40 @@ Multiprocessing related
 """
 
 
-def batch_dataframe(data: ExpressionDataLong, num_gene_batches=10, random_selection=False, random_seed=123) -> \
-        ExpressionDataLong:
-    unique_genes = data['gene'].unique()
+def batch_dataframe(
+    data: ExpressionDataLong,
+    num_gene_batches=10,
+    random_selection=False,
+    random_seed=123,
+) -> ExpressionDataLong:
+    unique_genes = data["gene"].unique()
     if random_selection:
         np.random.seed(random_seed)
         np.random.shuffle(unique_genes)
     gene_batches = np.random.choice(range(num_gene_batches), len(unique_genes))
     gene_batch_mapping = dict(zip(unique_genes, gene_batches))
-    data['gene_batch'] = data['gene'].map(gene_batch_mapping)
+    data["gene_batch"] = data["gene"].map(gene_batch_mapping)
     return data
 
 
 # Define the function that will be applied to each group
 def process_group(group, max_group_n=None, exp_lim=0.01, enr_fold=4):
-    processed_data = gene_classification(group, max_group_n=max_group_n, exp_lim=exp_lim, enr_fold=enr_fold)
+    processed_data = gene_classification(
+        group, max_group_n=max_group_n, exp_lim=exp_lim, enr_fold=enr_fold
+    )
     return processed_data
 
 
-def gene_classification_multiprocess(data: ExpressionDataLong, num_gene_batches=10, random_selection=False,
-                                     random_seed=123,
-                                     max_group_n=None, exp_lim=0.01, enr_fold=4,
-                                     num_process=None) -> GeneClassificationResult:
+def gene_classification_multiprocess(
+    data: ExpressionDataLong,
+    num_gene_batches=10,
+    random_selection=False,
+    random_seed=123,
+    max_group_n=None,
+    exp_lim=0.01,
+    enr_fold=4,
+    num_process=None,
+) -> GeneClassificationResult:
     """
     Multiprocessing to speed up HPA gene classification function
     Split the genes into num_gene_batches and process them in parallel
@@ -520,12 +603,19 @@ def gene_classification_multiprocess(data: ExpressionDataLong, num_gene_batches=
     pool = mp.Pool(num_pool)
     print(f"Multiprocessing with {mp.cpu_count()} cores")
     # Batch and split the DataFrame into groups based on the specified column
-    df = batch_dataframe(data, num_gene_batches=num_gene_batches, random_selection=random_selection,
-                         random_seed=random_seed)
-    groups = df.groupby('gene_batch')
+    df = batch_dataframe(
+        data,
+        num_gene_batches=num_gene_batches,
+        random_selection=random_selection,
+        random_seed=random_seed,
+    )
+    groups = df.groupby("gene_batch")
     # apply the function to each group in parallel
     # use starmap to unpack positional arguments
-    results = pool.starmap(process_group, [(group, max_group_n, exp_lim, enr_fold) for name, group in groups])
+    results = pool.starmap(
+        process_group,
+        [(group, max_group_n, exp_lim, enr_fold) for name, group in groups],
+    )
     # Close the pool of workers
     pool.close()
     pool.join()
