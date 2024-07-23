@@ -426,7 +426,9 @@ def gene_classification(
         lambda row: list(
             data.loc[
                 (data["gene"] == row["gene"])
-                & (data["expression"] / row["mean_exp"] >= enr_fold)
+                & (
+                    data["expression"] / row["mean_exp"] >= enr_fold
+                )  # expression in each cell type in the group is 4 fold higher than mean value across all cell types
                 & (data["expression"] >= exp_lim)
             ]["expression"]
         ),
@@ -454,16 +456,21 @@ def gene_classification(
     gene_class_info["spec_category"] = np.select(
         [
             gene_class_info["n_exp"] == 0,
-            (gene_class_info["max_exp"] / gene_class_info["max_2nd_or_lim"])
+            (
+                gene_class_info["max_exp"] / gene_class_info["max_2nd_or_lim"]
+            )  # cell type enriched genes have expression value more than 4 folds all others
             >= enr_fold,
             (gene_class_info["max_exp"] >= gene_class_info["lim"])
             & (gene_class_info["n_over"] <= max_group_n)
             & (gene_class_info["n_over"] > 1)
             & (
-                (gene_class_info["mean_over"] / gene_class_info["max_under_lim"])  # group enriched criteria: average expression in group large than 4 folds others
+                (
+                    gene_class_info["mean_over"] / gene_class_info["max_under_lim"]
+                )  # group enriched genes have average expression in group large than 4 folds others
                 >= enr_fold
             ),
-            gene_class_info["n_enhanced"] == 1,
+            gene_class_info["n_enhanced"]
+            == 1,  # if not satisfy group enriched will be group enhanced: when in a group the expression is high but not as high to make them enriched
             gene_class_info["n_enhanced"] > 1,
         ],
         [
