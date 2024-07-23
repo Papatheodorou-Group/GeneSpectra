@@ -13,7 +13,7 @@ import multiprocessing as mp
 from anndata import AnnData
 from scipy.sparse import issparse
 from typing import Optional
-from metacells.make_metacells import SummedAnnData
+from genespectra.metacells.make_metacells import SummedAnnData
 
 """
 Clean up input expression data 
@@ -390,7 +390,22 @@ def gene_classification(
         axis=1,
     )
 
-    gene_class_info["enrichment_group"] = gene_class_info.apply(
+    gene_class_info["exps_enriched"] = gene_class_info.apply(
+        lambda row: list(
+            data.loc[
+                (data["gene"] == row["gene"])
+                & (data["expression"] >= row["lim"])
+                & (data["expression"] >= exp_lim)
+            ]["expression"]
+        ),
+        axis=1,
+    )
+
+    gene_class_info["n_enriched"] = gene_class_info["exps_enriched"].apply(
+        lambda x: len(x)
+    )
+
+    gene_class_info["enriched_in"] = gene_class_info.apply(
         lambda row: ";".join(
             sorted(
                 data.loc[
@@ -400,15 +415,6 @@ def gene_classification(
                 ]["group"]
             )
         ),
-        axis=1,
-    )
-
-    gene_class_info["n_enriched"] = gene_class_info.apply(
-        lambda row: data.loc[
-            (data["gene"] == row["gene"])
-            & (data["expression"] >= row["lim"])
-            & (data["expression"] >= exp_lim)
-        ]["group"].count(),
         axis=1,
     )
 
@@ -430,19 +436,17 @@ def gene_classification(
         lambda x: len(x)
     )
 
-    gene_class_info["enhanced_in"] = gene_class_info["enhanced_in"] = (
-        gene_class_info.apply(
-            lambda row: ";".join(
-                sorted(
-                    data.loc[
-                        (data["gene"] == row["gene"])
-                        & (data["expression"] / row["mean_exp"] >= enr_fold)
-                        & (data["expression"] >= exp_lim)
-                    ]["group"]
-                )
-            ),
-            axis=1,
-        )
+    gene_class_info["enhanced_in"] = gene_class_info.apply(
+        lambda row: ";".join(
+            sorted(
+                data.loc[
+                    (data["gene"] == row["gene"])
+                    & (data["expression"] / row["mean_exp"] >= enr_fold)
+                    & (data["expression"] >= exp_lim)
+                ]["group"]
+            )
+        ),
+        axis=1,
     )
 
     # assign gene categories with this order
@@ -456,7 +460,7 @@ def gene_classification(
             & (gene_class_info["n_over"] <= max_group_n)
             & (gene_class_info["n_over"] > 1)
             & (
-                (gene_class_info["mean_over"] / gene_class_info["max_under_lim"])
+                (gene_class_info["mean_over"] / gene_class_info["max_under_lim"])  # group enriched criteria: average expression in group large than 4 folds others
                 >= enr_fold
             ),
             gene_class_info["n_enhanced"] == 1,
@@ -511,7 +515,7 @@ def gene_classification(
     )
 
     result = gene_class_info.assign(
-        enriched_groups=np.select(
+        specific_groups=np.select(
             [
                 gene_class_info["spec_category"].isin(
                     ["cell type enriched", "group enriched"]
@@ -520,10 +524,10 @@ def gene_classification(
                     ["cell type enhanced", "group enhanced"]
                 ),
             ],
-            [gene_class_info["enrichment_group"], gene_class_info["enhanced_in"]],
+            [gene_class_info["enriched_in"], gene_class_info["enhanced_in"]],
             default="",
         ),
-        n_enriched=np.select(
+        n_specific=np.select(
             [
                 gene_class_info["spec_category"].isin(
                     ["cell type enriched", "group enriched"]
