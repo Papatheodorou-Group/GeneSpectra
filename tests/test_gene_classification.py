@@ -35,11 +35,11 @@ def example_expression_data_long():
     # 4. Group enhanced: Few cell types have expression enr_fold times the mean
     # TODO fix group enhanced example - hard to find
     gene = "Gene_GroupEnhanced"
-    data.append([gene, f"CellType_{0+1}", 22])  # enhanced in CellType_1 and 2
-    data.append([gene, f"CellType_{1+1}", 22])
-    data.append([gene, f"CellType_{2+1}", 2])
-    data.append([gene, f"CellType_{3+1}", 3])
-    data.append([gene, f"CellType_{4+1}", 6])
+    data.append([gene, f"CellType_{0+1}", 4])  # enhanced in CellType_1 and 2
+    data.append([gene, f"CellType_{1+1}", 4])
+    data.append([gene, f"CellType_{2+1}", 1.1])
+    data.append([gene, f"CellType_{3+1}", 0.9])
+    data.append([gene, f"CellType_{4+1}", 0])
     data.append([gene, f"CellType_{5+1}", 0])
     data.append([gene, f"CellType_{6+1}", 0])
     data.append([gene, f"CellType_{7+1}", 0])
