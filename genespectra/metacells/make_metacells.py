@@ -499,6 +499,7 @@ class SummedAnnData(AnnData):
             summed_adata, removed_genes, removed_min_count, removed_min_cells_pct
         )
 
+    @classmethod
     def create_from_metacells_anndata(
         cls,
         adata,
