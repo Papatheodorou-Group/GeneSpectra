@@ -224,14 +224,15 @@ class ExpressionDataLong(pd.DataFrame):
         super().__init__(data, columns=columns)  # inherit methods from pandas dataframe
 
     @classmethod
-    def create_from_summed_adata(cls, input_summed_adata: SummedAnnData, anno_col):
+    def create_from_summed_adata(cls, input_summed_adata: SummedAnnData, anno_col, mean_method='arithmetic'):
         """
         :param input_summed_adata: a SummedAnnData object with each cell a metacell, size-factor normalized
         :param anno_col: the column in adata.obs with cell groups information, usually cell type
+        :param mean_method: arithmatic mean or geometric mean to calculate the expression profile per cell group?
         :return: an instance of ExpressionDataLong in the format ready to run gene classification
         """
         print("Calculating group average of counts from SummedAnnData")
-        res = get_group_average(input_summed_adata, anno_col)
+        res = get_group_average(input_summed_adata, anno_col, mean_method)
         # get average expression profile per metacell of the same type
         if res.columns.name is None:
             res.columns.name = "feature_name"
