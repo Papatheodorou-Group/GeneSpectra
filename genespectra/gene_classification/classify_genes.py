@@ -12,6 +12,7 @@ import warnings
 import multiprocessing as mp
 from anndata import AnnData
 from scipy.sparse import issparse
+from scipy import stats 
 from typing import Optional
 from genespectra.metacells.make_metacells import SummedAnnData
 
@@ -191,14 +192,23 @@ Gene classification
 """
 
 
-def get_group_average(input_ad: AnnData, anno_col):
+def get_group_average(input_ad: AnnData, anno_col: str, method='arithmetic'):
     input_ad.obs[anno_col] = input_ad.obs[anno_col].astype("category")
     res = pd.DataFrame(
         columns=input_ad.var_names, index=input_ad.obs[anno_col].cat.categories
     )
-    for cluster in input_ad.obs[anno_col].cat.categories:
-        res.loc[cluster] = input_ad[input_ad.obs[anno_col].isin([cluster]), :].X.mean(0)
-    return res
+    
+    if method == 'arithmetic':
+        for cluster in input_ad.obs[anno_col].cat.categories:
+            res.loc[cluster] = input_ad[input_ad.obs[anno_col].isin([cluster]), :].X.mean(0)
+        return res
+
+    elif method == 'geometric':
+        for cluster in input_ad.obs[anno_col].cat.categories:
+            res.loc[cluster] = stats.gmean(input_ad[input_ad.obs[anno_col].isin([cluster]), :].X, axis=0)
+        return res
+    else:
+        raise ValueError('method has to be either arithmetic or geometric for mean calculation')
 
 
 class ExpressionDataLong(pd.DataFrame):
