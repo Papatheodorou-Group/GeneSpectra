@@ -12,7 +12,7 @@ import warnings
 import multiprocessing as mp
 from anndata import AnnData
 from scipy.sparse import issparse
-from scipy import stats 
+from scipy import stats
 from typing import Optional
 from genespectra.metacells.make_metacells import SummedAnnData
 
@@ -192,23 +192,29 @@ Gene classification
 """
 
 
-def get_group_average(input_ad: AnnData, anno_col: str, method='arithmetic'):
+def get_group_average(input_ad: AnnData, anno_col: str, method="arithmetic"):
     input_ad.obs[anno_col] = input_ad.obs[anno_col].astype("category")
     res = pd.DataFrame(
         columns=input_ad.var_names, index=input_ad.obs[anno_col].cat.categories
     )
-    
-    if method == 'arithmetic':
+
+    if method == "arithmetic":
         for cluster in input_ad.obs[anno_col].cat.categories:
-            res.loc[cluster] = input_ad[input_ad.obs[anno_col].isin([cluster]), :].X.mean(0)
+            res.loc[cluster] = input_ad[
+                input_ad.obs[anno_col].isin([cluster]), :
+            ].X.mean(0)
         return res
 
-    elif method == 'geometric':
+    elif method == "geometric":
         for cluster in input_ad.obs[anno_col].cat.categories:
-            res.loc[cluster] = stats.gmean(input_ad[input_ad.obs[anno_col].isin([cluster]), :].X, axis=0)
+            res.loc[cluster] = stats.gmean(
+                input_ad[input_ad.obs[anno_col].isin([cluster]), :].X, axis=0
+            )
         return res
     else:
-        raise ValueError('method has to be either arithmetic or geometric for mean calculation')
+        raise ValueError(
+            "method has to be either arithmetic or geometric for mean calculation"
+        )
 
 
 class ExpressionDataLong(pd.DataFrame):
@@ -224,7 +230,9 @@ class ExpressionDataLong(pd.DataFrame):
         super().__init__(data, columns=columns)  # inherit methods from pandas dataframe
 
     @classmethod
-    def create_from_summed_adata(cls, input_summed_adata: SummedAnnData, anno_col, mean_method='arithmetic'):
+    def create_from_summed_adata(
+        cls, input_summed_adata: SummedAnnData, anno_col, mean_method="arithmetic"
+    ):
         """
         :param input_summed_adata: a SummedAnnData object with each cell a metacell, size-factor normalized
         :param anno_col: the column in adata.obs with cell groups information, usually cell type
@@ -360,6 +368,18 @@ def gene_classification(
         data.loc[data["expression"] < exp_lim]
         .groupby("gene")["group"]
         .apply(lambda x: ";".join(sorted(x)))
+    )
+
+    # tau calculation
+
+    data["max_expr"] = data.groupby("gene")["expression"].transform("max")
+
+    data["max_scaled_expr"] = data["expression"] / data["max_expr"]
+
+    data = data.fillna(0)
+
+    gene_class_info["tau"] = data.groupby("gene").agg(
+        tau=("max_scaled_expr", lambda x: (np.sum(1 - x)) / (num_cell_types - 1))
     )
 
     # enrichment limit
@@ -530,6 +550,15 @@ def gene_classification(
             gene_class_info["max_exp"] / gene_class_info["mean_exp"],
         ],
         default=0.0,
+    )
+
+    gene_class_info["tau_category"] = np.select(
+        [gene_class_info["n_exp"] == 0, gene_class_info["tau"] >= 0.85],
+        [
+            "lowly expressed",
+            "specific (tau >= 0.85)",
+        ],
+        default="non-specific (tau < 0.85)",
     )
 
     result = gene_class_info.assign(
