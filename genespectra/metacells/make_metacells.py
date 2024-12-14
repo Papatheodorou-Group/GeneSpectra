@@ -1,3 +1,11 @@
+"""
+Make metacells or pseudobulks from scRNA-seq data
+Python 3.11.0
+Yuyao Song <ysong@ebi.ac.uk>
+Dec 2024
+© EMBL-European Bioinformatics Institute, 2024
+"""
+
 import matplotlib.pyplot as plt
 import metacells as mc
 import numpy as np
@@ -17,6 +25,10 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 random_seed = 123456
+
+"""
+Workflow on making metacells from scRNA-seq data used in the paper
+"""
 
 
 def exclude_mt_genes(adata: AnnData, col_use: str = None) -> AnnData:
@@ -331,6 +343,11 @@ def plot_num_cell_type_sc_per_metacell(
     return plot
 
 
+"""
+Experimental workflow on making metacells per cell type, not used in the paper
+"""
+
+
 def make_metacells_one_cell_type(
     adata: AnnData,
     cell_type_now: str,
@@ -478,6 +495,11 @@ def make_metacells_per_group(
     final_mc_adata.var = final_mc_adata.var.astype(str)
 
     return final_mc_adata
+
+
+"""
+Define SummedAnnData class from metacells or pseudobulks, will be used as input for gene classification
+"""
 
 
 class SummedAnnData(AnnData):
