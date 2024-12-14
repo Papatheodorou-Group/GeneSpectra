@@ -1,11 +1,9 @@
 import matplotlib.pyplot as plt
 import metacells as mc
 import numpy as np
-import os
 import pandas as pd
 import scipy.sparse as sp
 import seaborn as sns
-from typing import Tuple, List
 
 sns.set_style("white")
 import scanpy as sc
@@ -18,7 +16,7 @@ import warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-forbidden_gene_names = []
+random_seed = 123456
 
 
 def exclude_mt_genes(adata: AnnData, col_use: str = None) -> AnnData:
@@ -57,16 +55,17 @@ def exclude_gene_all_zeros(adata: AnnData) -> AnnData:
 
 def find_cell_cycle_gene_modules(
     adata: AnnData, genes_mitotic: list, min_similarity_of_module: float = 0.95
-) -> Tuple[AnnData, List[int]]:
+) -> tuple[AnnData, list[int]]:
     """
-
-    :param min_similarity_of_module:
-    :param adata:
-    :param genes_mitotic:
-    :return:
+    Find cell cycle gene modules related to mitotic genes, requiring minimum similarity of gene modules,
+    this is a shortcut and it is recommended to use the metacell workflow to decide on whether to exclude each module or not
+    :param min_similarity_of_module: minimum average gene similarity of a module to be excluded
+    :param adata: input anndata object with genes with all-zero expression removed, MT genes removed
+    :param genes_mitotic: referece mitotic genes, typically obtained manually or via GO terms
+    :return: an anndata object with cell cycle-related gene names marked, and a list of forbidden gene names
     """
-    global forbidden_gene_names
-    ## is this correct?
+    forbidden_gene_names = []
+    global random_seed
 
     suspect_genes_mask = mc.tl.find_named_genes(adata, names=genes_mitotic)
 
@@ -74,7 +73,7 @@ def find_cell_cycle_gene_modules(
     suspect_gene_names = sorted(adata.var_names[suspect_genes_mask])
 
     print("Find related gene modules")
-    mc.pl.relate_genes(adata, random_seed=123456)
+    mc.pl.relate_genes(adata, random_seed=random_seed)
 
     module_of_genes = adata.var["related_genes_module"]
     suspect_gene_modules = np.unique(module_of_genes[suspect_genes_mask])
@@ -98,6 +97,12 @@ def find_cell_cycle_gene_modules(
     print(f"Forbidden gene modules related to cell cycle are {gene_module_use}")
 
     forbidden_genes_mask = suspect_genes_mask
+
+    if len(gene_module_use) == 0:
+        print("No gene module is excluded")
+        # then only exclude known genes that are related to mitosis
+        forbidden_gene_names = genes_mitotic
+
     for gene_module in gene_module_use:
         module_genes_mask = module_of_genes == gene_module
         forbidden_genes_mask |= module_genes_mask
@@ -109,16 +114,18 @@ def find_cell_cycle_gene_modules(
 
 
 def make_metacells(
-    adata: AnnData, forbidden_gene_names: list, target_umi: int = 160000
+    adata: AnnData, forbidden_gene_names: list[str], target_umi: int = 160000
 ) -> AnnData:
     """
     Using metacell2 to create metacells from raw counts of scRNA-seq data
-    :param target_umi:
-    :param forbidden_gene_names:
+    :param target_umi: target UMI per metacell
+    :param forbidden_gene_names: list of forbidden gene names, these genes are excluded in metacell construction
     :param adata: output anndata by find_cell_cycle_gene_modules, no genes with all-zero expression, no MT genes
-    :return: an anndata object with metacell information, each cell is still a single cell at this point
+    :return: an anndata object with metacell information, each cell is still a single cell at this point just assigned to a metacell
     """
     print("make_metacells")
+
+    global random_seed
     max_parallel_piles = mc.pl.guess_max_parallel_piles(adata)
     print(f"max parallel piles for metacell calculation = {max_parallel_piles}")
     mc.pl.set_max_parallel_piles(max_parallel_piles)
@@ -131,7 +138,7 @@ def make_metacells(
         min_target_pile_size=5000,
         max_target_pile_size=12000,
         forbidden_gene_names=forbidden_gene_names,
-        random_seed=123456,
+        random_seed=random_seed,
     )
 
     return adata
@@ -139,7 +146,7 @@ def make_metacells(
 
 def collect_metacell_annotations(adata: AnnData, anno_col: str) -> pd.DataFrame:
     """
-
+    Get a summary table for how many single cells per metacell
     :param adata: anndata object with metacells calculated by make_metacells
     :param anno_col: column in adata.obs with cell type annotation
     :return: a dataframe mapping metacells to (main) cell type in annotation
@@ -155,7 +162,7 @@ def collect_metacell_annotations(adata: AnnData, anno_col: str) -> pd.DataFrame:
 
 def collect_metacells(adata: AnnData, metacells_name: str) -> AnnData:
     """
-
+    Collect metacells from anndata object
     :param metacells_name: give metacells dataset a name
     :param adata: anndata object with metacells calculated by make_metacells
     :return: metacells anndata object with each cell as a metacell and outlier cells removed
@@ -168,6 +175,7 @@ def annotate_metacells_by_max(
     adata: AnnData, annotation_sc: pd.DataFrame, anno_col: str
 ) -> AnnData:
     """
+    Transfer annotation from single cells to metacells by majority vote
 
     :param anno_col: annotation column in annotation_sc
     :param adata: a metacell anndata from collect_metacells
@@ -194,17 +202,9 @@ def annotate_metacells_by_max(
     return adata
 
 
-def check_anndata():
-    print("check_anndata")
-
-
-def summarize_counts():
-    print("summarize_counts")
-
-
 def plot_metacell_umap(
     adata: AnnData, anno_col: str, min_dist: float = 0.5
-) -> Tuple[AnnData, plt.Axes]:
+) -> tuple[AnnData, plt.Axes]:
     """
 
     :param adata:
@@ -212,8 +212,10 @@ def plot_metacell_umap(
     :param min_dist:
     :return:
     """
+
+    global random_seed
     mc.pl.compute_umap_by_features(
-        adata, max_top_feature_genes=1000, min_dist=min_dist, random_seed=123456
+        adata, max_top_feature_genes=1000, min_dist=min_dist, random_seed=random_seed
     )
     umap_x = mc.ut.get_o_numpy(adata, "umap_x")
     umap_y = mc.ut.get_o_numpy(adata, "umap_y")
@@ -334,6 +336,8 @@ def make_metacells_one_cell_type(
     forbidden_gene_names: list,
     target_umi: int = 160000,
 ) -> AnnData:
+
+    global random_seed
     adata_now = adata[adata.obs[annotation_col] == cell_type_now, :]
 
     max_parallel_piles = mc.pl.guess_max_parallel_piles(adata_now)
@@ -352,7 +356,7 @@ def make_metacells_one_cell_type(
         min_target_pile_size=5000,
         max_target_pile_size=12000,
         forbidden_gene_names=forbidden_gene_names,
-        random_seed=123456,
+        random_seed=random_seed,
     )
     adata_now_mc = mc.pl.collect_metacells(adata_now, name=cell_type_now)
     adata_now_mc.obs["cell_type"] = cell_type_now
@@ -484,7 +488,7 @@ class SummedAnnData(AnnData):
         :param annotation_col: column in adata.obs indicating annotation to use
         :type annotation_col: str
         :param removed_genes: initiate for further filtering, defaults to None
-        :type removed_genes: List, optional
+        :type removed_genes: list, optional
         :param removed_min_cell_pct: initiate for further filtering, defaults to None
         :type removed_min_cell_pct: float32, optional
         :param removed_min_count: initiate for further filtering, defaults to None
