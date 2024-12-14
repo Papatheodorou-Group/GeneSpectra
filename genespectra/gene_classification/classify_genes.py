@@ -41,8 +41,10 @@ def depth_normalize_counts(adata: AnnData, target_sum: int = None) -> AnnData:
     """
     Wrapper of scanpy depth normalisation function focusing on size factor normalisation
     Default use size-factor normalisation, size-factor is the average total count
-    :param target_sum: target sum normalized count, default the average total count
     :param adata: an anndata object
+    :type adata: AnnData
+    :param target_sum: target sum normalized count, default the average total count
+    :type target_sum: int, optional
     :return: an anndata object with normalized counts
     """
     print("Size factor depth normalize counts")
@@ -60,6 +62,7 @@ def log1p_counts(adata: AnnData) -> AnnData:
     """
     Wrapper of scanpy log1p function, natural log transform normalized counts
     :param adata: an anndata object with normalized counts
+    :type adata: AnnData
     :return: an anndata object with log1p transformed counts
     """
     print("Natural log1p counts data")
@@ -71,7 +74,9 @@ def find_low_count_genes(adata: AnnData, min_count: int = 1) -> AnnData:
     """
     Find genes never above min_count in all metacells, these genes are always lowly expressed
     :param adata: an anndata object with each cell a metacell
+    :type adata: AnnData
     :param min_count: minimum count, default 1
+    :type min_count: int, optional
     :return: an anndata object with a boolean column in adata.var indicating whether the gene is lowly expressed
     """
     print(
@@ -91,7 +96,9 @@ def remove_cell_cycle_genes(
     """
     Remove cell cycle genes and genes correlate with cell cycle genes found by metacell
     :param adata: an anndata object with metacell calculated
+    :type adata: AnnData
     :param cell_cycle_var_col: cell cycle gene column in adata.var, default 'forbidden_gene'
+    :type cell_cycle_var_col: str, optional
     :return: an anndata object with cell cycle and related genes removed
     """
     if cell_cycle_var_col not in adata.var.columns:
@@ -107,7 +114,9 @@ def remove_low_counts_genes(adata: AnnData, min_count=1) -> AnnData:
     """
     Simply remove all lowly expressed genes found by find_low_count_genes
     :param adata: an anndata object with lowly expressed genes marked by find_low_count_genes
+    :type adata: AnnData
     :param min_count: the min_count used in find_low_count_genes
+    :type min_count: int
     :return: an anndata object with lowly expressed genes removed, and number of removed genes stored in .uns
     """
     if f"never_above_{min_count}" not in adata.var.columns:
@@ -132,7 +141,7 @@ def choose_mtx_rep(
     :param layer: whether use another layer in the anndata defaults to None
     :type layer: str, optional
     :raises ValueError: _description_
-    :return: _description_
+    :return: the matrix representation of the AnnData object
     :rtype: np.ndarray
     """
 
@@ -151,6 +160,15 @@ def choose_mtx_rep(
 
 
 def get_mean_var_disp(adata: AnnData, axis=0):
+    """calculate expression mean, var and dispersion for each gene
+
+    :param adata: anndata object
+    :type adata: AnnData
+    :param axis: which axis to calculate along, defaults to 0
+    :type axis: int, optional
+    :return: anndata object with gene mean, var and dispersion annotated
+    :rtype: AnnData
+    """
     mat = choose_mtx_rep(adata, use_raw=False, layer=None)
     if issparse(mat):
         mat = mat.todense()
@@ -169,6 +187,16 @@ def get_mean_var_disp(adata: AnnData, axis=0):
 
 
 def find_low_variance_genes(adata: AnnData, var_cutoff: float = 0.1):
+    """filter genes with too low variance
+
+    :param adata: anndata object
+    :type adata: AnnData
+    :param var_cutoff: minimum gene variance, defaults to 0.1
+    :type var_cutoff: float, optional
+    :raises KeyError: _description_
+    :return: anndata object with low variance genes annotated
+    :rtype: AnnData
+    """
     print("find_low variance_genes")
     if "gene_var_log1psf" not in adata.var.columns:
         raise KeyError(
@@ -186,6 +214,16 @@ def find_low_variance_genes(adata: AnnData, var_cutoff: float = 0.1):
 
 
 def find_low_expression_genes(adata: AnnData, mean_cutoff: float = 0.1):
+    """filter genes with too low expression
+    :param adata: anndata object
+    :type adata: AnnData
+    :param mean_cutoff: minimum gene mean expression, defaults to 0.1
+    :type mean_cutoff: float, optional
+    :raises KeyError: _description_
+    :return: anndata object with low expression genes annotated
+    :rtype: AnnData
+
+    """
     print("find_low expression_genes")
     if "gene_mean_log1psf" not in adata.var.columns:
         raise KeyError(
@@ -212,7 +250,8 @@ def get_group_average(
     anno_col: str,
     method: Literal["arithmetic", "geometric"] = "arithmetic",
 ) -> pd.DataFrame:
-    """Get group averaged expression value, could be across metacells of the same type, could be betwee pseudobulks of the same type, or only one pseudobulk per type
+    """Get group averaged expression value, could be across metacells of the same type, could be between pseudobulks of the same type
+    or if the input only has one pseudobulk per type, that will be returned
 
     :param input_ad: input normalized SummedAnnData object with each cell a metacell or a pseudobulk
     :type input_ad: SummedAnnData
@@ -271,9 +310,13 @@ class ExpressionDataLong(pd.DataFrame):
         Create an instance of ExpressionDataLong from a SummedAnnData object
         first calculate the averaged expression values per group, then pivot the table to long format
         :param input_summed_adata: a SummedAnnData object with each cell a metacell, size-factor normalized
+        :type input_summed_adata: SummedAnnData
         :param anno_col: the column in adata.obs with cell groups information, usually cell type
+        :type anno_col: str
         :param mean_method: arithmatic mean or geometric mean to calculate the expression profile per cell group?
+        :type mean_method: Literal[&quot;arithmetic&quot;, &quot;geometric&quot;], optional
         :return: an instance of ExpressionDataLong in the format ready to run gene classification
+        :rtype: ExpressionDataLong
         """
         print("Calculating group average of counts from SummedAnnData")
         res = get_group_average(
@@ -298,9 +341,9 @@ class GeneClassificationResult(pd.DataFrame):
     def create_from_expression_data_long(
         cls,
         data: ExpressionDataLong,
-        max_group_n: int = None,
-        exp_lim: int = 1,
-        enr_fold: int = 4,
+        max_group_n: Optional[int] = None,
+        exp_lim: float = 1,
+        enr_fold: float = 4,
     ):
         """Generate gene classification results from ExpressionDataLong, single-core computing
 
@@ -309,9 +352,9 @@ class GeneClassificationResult(pd.DataFrame):
         :param max_group_n: maximum cell type that can form a group, defaults to None, meaning half of total cell types
         :type max_group_n: int, optional
         :param exp_lim: minimal expression value to be considered non-lowly expressed, defaults to 1
-        :type exp_lim: int, optional
+        :type exp_lim: float, optional
         :param enr_fold: minimal fold expression for enrichment classes, defaults to 4
-        :type enr_fold: int, optional
+        :type enr_fold: float, optional
         :return: a gene classification result object
         :rtype: GeneClassificationResult
         """
@@ -327,9 +370,9 @@ class GeneClassificationResult(pd.DataFrame):
         num_gene_batches: int = 10,
         random_selection: bool = False,
         random_seed: int = 123,
-        max_group_n: int = None,
-        exp_lim: int = 1,
-        enr_fold: int = 4,
+        max_group_n: Optional[int] = None,
+        exp_lim: float = 1,
+        enr_fold: float = 4,
         num_process: int = None,
     ):
         """Generate gene classification results from ExpressionDataLong, multi-core computing
@@ -345,9 +388,9 @@ class GeneClassificationResult(pd.DataFrame):
         :param max_group_n: maximum cell type that can form a group, defaults to None, meaning half of total cell types
         :type max_group_n: int, optional
         :param exp_lim: minimal expression value to be considered non-lowly expressed, defaults to 1
-        :type exp_lim: int, optional
+        :type exp_lim: float, optional
         :param enr_fold: minimal fold expression for enrichment classes, defaults to 4
-        :type enr_fold: int, optional
+        :type enr_fold: float, optional
         :param num_process: number of processes to parallize, defaults to None
         :type num_process: int, optional
         :return: a gene classification result object
@@ -390,9 +433,13 @@ def gene_classification(
 
     Number of expressed cell types are also reported
     :param data: a dataframe in the format of ready to run gene classification by prepare_anndata_for_classification
+    :type data: ExpressionDataLong
     :param exp_lim: the limit of expression value to be considered lowly expressed, default 1, note that this depend on the size-factor normalization
+    :type exp_lim: float, optional
     :param enr_fold: the fold for enrichment and enhancement
+    :type enr_fold: float, optional
     :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
+    :type max_group_n: Optional[int], optional
     :return: a pd.dataframe containing information and classification of all genes
     """
     print("Running HPA gene classification \n")
@@ -701,9 +748,9 @@ def gene_classification_multiprocess(
     num_gene_batches=10,
     random_selection=False,
     random_seed=123,
-    max_group_n=None,
-    exp_lim=0.01,
-    enr_fold=4,
+    max_group_n: Optional[int] = None,
+    exp_lim: float = 1,
+    enr_fold: float = 4,
     num_process=None,
 ) -> GeneClassificationResult:
     """
@@ -711,14 +758,23 @@ def gene_classification_multiprocess(
     Split the genes into num_gene_batches and process them in parallel
     Very helpful for large datasets
     :param random_seed: numpy random seed
+    :type random_seed: int
     :param num_gene_batches: number of batches to group all genes, default 10, takes a few sec to run for 32k genes
+    :type num_gene_batches: int
     :param random_selection: whether randomly shuffle the genes when batching
+    :type random_selection: bool
     :param data: the input data from prepare_anndata_for_classification
+    :type data: ExpressionDataLong
     :param exp_lim: the limit of expression, default 1
+    :type exp_lim: float
     :param enr_fold: the fold for enrichment and enhancement
+    :type enr_fold: float
     :param max_group_n: maximum number of cell types for group enrichment and enhancement, default half of all groups
-    :param num_process: number of processes to run in parallel
+    :type max_group_n: Optional[int]
+    :param num_process: number of processes to run in parallel, if unspecified, will search for all cores available
+    :type num_process: int
     :return: a pd.dataframe containing information and classification of all genes
+    :rtype: GeneClassificationResult
     """
 
     # Create a pool of workers
