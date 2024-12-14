@@ -1,3 +1,10 @@
+#!/usr/bin/env Python3
+
+# example script for running gene classification on cell type-summed anndata using genespectra
+# if metacells are used as input, it is recommended to build metacells beforehand
+# it is better to adjust the metacell construction process interactively in a jupyter notebook
+
+
 import scanpy as sc
 from genespectra.gene_classification.classify_genes import (
     ExpressionDataLong,
@@ -16,7 +23,20 @@ import click
     default=None,
     help="Cell class annotation column to use in input_h5ad",
 )
-def run_classification_cell_pool(input_h5ad, out_gene_class, anno_col, **kwargs):
+def run_classification_cell_pool(
+    input_h5ad, out_gene_class, anno_col, target_sum=1000000, **kwargs
+):
+    """function to run gene classification for pseudobulk data
+
+    :param input_h5ad: input file path, .h5ad file neeeded
+    :type input_h5ad: str
+    :param out_gene_class: output gene classes table file path, csv
+    :type out_gene_class: str
+    :param anno_col: column name for cell type annotation
+    :type anno_col: str
+    :param target_sum: target sum for depth normalization
+    :type target_sum: int
+    """
     adata = sc.read_h5ad(input_h5ad)
 
     # simply make pseudobulks, sum by anno_col
@@ -25,7 +45,7 @@ def run_classification_cell_pool(input_h5ad, out_gene_class, anno_col, **kwargs)
 
     # normalize to a fixed size factor
     summed_adata = SummedAnnData.depth_normalize_counts(
-        summed_adata, target_sum=1000000
+        summed_adata, target_sum=target_sum
     )
     sc.pp.calculate_qc_metrics(summed_adata, log1p=False, inplace=True)
     summed_adata = SummedAnnData.filter_low_counts(summed_adata, min_count=1)
