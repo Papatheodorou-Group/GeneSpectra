@@ -1,9 +1,14 @@
 #!/usr/bin/env Python3
 
-# example script for running gene classification on cell type-summed anndata using genespectra
-# if metacells are used as input, it is recommended to build metacells beforehand
-# it is better to adjust the metacell construction process interactively in a jupyter notebook
-
+"""
+Example script for running gene classification on cell type-summed anndata using genespectra
+If metacells are used as input, it is recommended to build metacells beforehand or refer to the metacells submodule here
+It is better to adjust the metacell construction process interactively in a jupyter notebook
+Python 3.11.0
+Yuyao Song <ysong@ebi.ac.uk>
+Dec 2024
+© EMBL-European Bioinformatics Institute, 2024
+"""
 
 import scanpy as sc
 from genespectra.gene_classification.classify_genes import (
