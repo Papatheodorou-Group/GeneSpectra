@@ -206,11 +206,12 @@ def plot_metacell_umap(
     adata: AnnData, anno_col: str, min_dist: float = 0.5
 ) -> tuple[AnnData, plt.Axes]:
     """
+    Plot metacells on UMAP, color by annotation column
 
-    :param adata:
-    :param anno_col:
-    :param min_dist:
-    :return:
+    :param adata: an anndata object with metacells calculated by make_metacells
+    :param anno_col: column in adata.obs with cell type annotation
+    :param min_dist: minimum distance for UMAP calculation
+    :return: a tuple of anndata object and a seaborn plot
     """
 
     global random_seed
@@ -236,6 +237,7 @@ def plot_counts_density(
     adata: AnnData,
 ) -> plt.Axes:
     """
+    Plot density of total UMIs of cells
 
     :param adata: a raw count anndata object
     :return: a seaborn density plot
@@ -252,10 +254,10 @@ def plot_gene_similarity_module(
     module_num: int,
 ) -> plt.Axes:
     """
-
+    Plot heatmap of gene similarity within a module
     :param adata: the anndata output by find_cell_cycle_gene_modules
     :param module_num: which module to plot
-    :return: a matplotlib.pyplot
+    :return: a seaborn heatmap plot
     """
     if "related_genes_module" not in adata.var.columns:
         raise KeyError(
@@ -288,9 +290,9 @@ def plot_gene_similarity_module(
 
 def plot_num_sc_per_metacell(annotation_sc: pd.DataFrame) -> plt.Axes:
     """
-
-    :param annotation_sc:
-    :return:
+    Plot histogram of number of single cells per metacell
+    :param annotation_sc: dataframe with cell type annotation from collect_metacell_annotations
+    :return: a seaborn histogram plot
     """
     plot = plt.axes()
     plt.hist(annotation_sc.query("metacell >= 0")["count"], bins=30)
@@ -304,10 +306,10 @@ def plot_num_cell_type_sc_per_metacell(
     anno_col: str,
 ) -> plt.Axes:
     """
-
-    :param metacells_res:
-    :param anno_col:
-    :return:
+    Plot histogram of number of cell types of single cells per metacell
+    :param metacells_res: anndata object with metacells calculated by make_metacells
+    :param anno_col: column in adata.obs with cell type annotation
+    :return: a seaborn histogram plot
     """
     if "metacell" not in metacells_res.obs.columns:
         raise KeyError("metacell not in metacells_res.obs.columns")
@@ -333,9 +335,24 @@ def make_metacells_one_cell_type(
     adata: AnnData,
     cell_type_now: str,
     annotation_col: str,
-    forbidden_gene_names: list,
+    forbidden_gene_names: list[str],
     target_umi: int = 160000,
 ) -> AnnData:
+    """
+    Function to make metacells for one cell type only, used in make_metacells_per_group
+    :param adata: anndata object
+    :type adata: AnnData
+    :param cell_type_now: name of cell type for which we are making metacell now
+    :type cell_type_now: str
+    :param annotation_col: column in adata.obs indicating cell type annotation
+    :type annotation_col: str
+    :param forbidden_gene_names: list of forbidden gene names, these genes are excluded in metacell construction
+    :type forbidden_gene_names: list
+    :param target_umi: target UMI counts per metacell, defaults to 160000
+    :type target_umi: int, optional
+    :return: anndata object with metacells for one cell type
+    :rtype: AnnData
+    """
 
     global random_seed
     adata_now = adata[adata.obs[annotation_col] == cell_type_now, :]
@@ -373,9 +390,23 @@ def make_metacells_one_cell_type(
 def make_metacells_per_group(
     adata: AnnData,
     annotation_col: str,
-    forbidden_gene_names: list,
+    forbidden_gene_names: list[str],
     target_umi: int = 160000,
 ) -> AnnData:
+    """
+    Make metacells for each cell type in adata, and combine them into one anndata object
+    **Only used as an experimental function, not recommended for general use**
+    :param adata: AnnData object
+    :type adata: AnnData
+    :param annotation_col: column in adata.obs indicating cell type annotation
+    :type annotation_col: str
+    :param forbidden_gene_names: list of forbidden gene names, these genes are excluded in metacell construction
+    :type forbidden_gene_names: list
+    :param target_umi: target UMI counts per metacell, defaults to 160000
+    :type target_umi: int, optional
+    :return: anndata object with metacells for each cell type
+    :rtype: AnnData
+    """
     all_cell_type_mc_adatas = list()
     all_feature_genes = list()
     for cell_type_now in adata.obs[annotation_col].unique():
@@ -453,9 +484,9 @@ class SummedAnnData(AnnData):
     def __init__(
         self,
         summed_adata=None,
-        removed_genes=None,
-        removed_min_count=None,
-        removed_min_cells_pct=None,
+        removed_genes: list[str] = None,
+        removed_min_count: int = None,
+        removed_min_cells_pct: float = None,
     ):
         super().__init__(
             X=summed_adata.X if summed_adata.X is not None else None,
@@ -475,11 +506,11 @@ class SummedAnnData(AnnData):
     @classmethod
     def create_from_summing_anndata(
         cls,
-        adata,
-        annotation_col,
-        removed_genes=None,
-        removed_min_count=None,
-        removed_min_cells_pct=None,
+        adata: AnnData,
+        annotation_col: str,
+        removed_genes: list[str] = None,
+        removed_min_count: int = None,
+        removed_min_cells_pct: float = None,
     ):
         """create an SummedAnnData object from aggregating counts of cells of the same annotation in an AnnData objecy
 
@@ -490,7 +521,7 @@ class SummedAnnData(AnnData):
         :param removed_genes: initiate for further filtering, defaults to None
         :type removed_genes: list, optional
         :param removed_min_cell_pct: initiate for further filtering, defaults to None
-        :type removed_min_cell_pct: float32, optional
+        :type removed_min_cell_pct: float, optional
         :param removed_min_count: initiate for further filtering, defaults to None
         :type removed_min_count: int, optional
         :return: a SummedAnnData object
@@ -506,14 +537,35 @@ class SummedAnnData(AnnData):
     @classmethod
     def create_from_metacells_anndata(
         cls,
-        adata,
-        removed_genes=None,
-        removed_min_count=None,
-        removed_min_cells_pct=None,
+        adata: AnnData,
+        removed_genes: list[str] = None,
+        removed_min_count: int = None,
+        removed_min_cells_pct: float = None,
     ):
+        """
+        Make a SummedAnnData object from an AnnData object with metacells
+
+        :param adata: anndata object with metacells
+        :type adata: AnnData
+        :param removed_genes: genes removed from further classification analysis, defaults to None
+        :type removed_genes: list[str], optional
+        :param removed_min_count: min_count for removed genes, defaults to None
+        :type removed_min_count: int, optional
+        :param removed_min_cells_pct: min percentage of cells expressed for removed genes, defaults to None
+        :type removed_min_cells_pct: float, optional
+        :return: a SummedAnnData object
+        :rtype: SummedAnnData
+        """
         return cls(adata, removed_genes, removed_min_count, removed_min_cells_pct)
 
-    def depth_normalize_counts(self, target_sum=None):
+    def depth_normalize_counts(self, target_sum: int = None):
+        """Run depth normalization on SummedAnnData object
+
+        :param target_sum: target sum for depth normalization, defaults to None, meaning average total counts across cells
+        :type target_sum: int, optional
+        :return: depth normalized SummedAnnData object
+        :rtype: SummedAnnData
+        """
 
         print("Size factor depth normalize counts")
         if target_sum is not None:
@@ -525,15 +577,15 @@ class SummedAnnData(AnnData):
 
         return self
 
-    def filter_low_counts(self, min_count=1, min_cells_pct=1):
+    def filter_low_counts(self, min_count=1, min_cells_pct=0):
         """Remove genes that doesn't pass min_count, or doesn't have non-zero counts in min_cells_pct
 
         :param min_count: minimum count of gene, defaults to 1
         :type min_count: int, optional
-        :param pct_detected: minimum percentage of expression across cells, defaults to 1
+        :param pct_detected: minimum percentage of expression across cells, defaults to 0
         :type pct_detected: int, optional
         :return: filtered SummedAnnData object with removed_genes, removed_min_count annotated
-        :rtype: _type_
+        :rtype: SummedAnnData
         """
         assert isinstance(
             min_count, (int, float)
@@ -567,10 +619,13 @@ class SummedAnnData(AnnData):
 
 def sum_expression_by_class(adata, annotation_col):
     """
-    Aggregate scRNA-seq data by cell class, create a "pseudo-bulk"
+    Aggregate scRNA-seq anndata by cell class, create a "pseudo-bulk"
     :param adata: input anndata object
+    :type adata: AnnData
     :param annotation_col: the column in adata.obs indicating cell groups to combine
+    :type annotation_col: str
     :return: an anndata object storing combined counts for each cell group
+    :rtype: AnnData
     """
     # Create a new AnnData object to store the summed expression levels
     summed_adata = AnnData()
