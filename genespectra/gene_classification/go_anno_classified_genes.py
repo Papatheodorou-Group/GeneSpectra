@@ -8,11 +8,12 @@ Dec 2024
 
 import pandas as pd
 import plotly.express as px
+from plotly.graph_objects import Figure
 from biomart import BiomartServer
 
 import os
 import sys
-from typing import Optional, Literal
+from typing import Literal
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
@@ -128,7 +129,7 @@ def plot_categories_go(
     go_query: str,
     column_name="external_gene_name",
     kind: Literal["spec_category", "dist_category"] = "spec_category",
-) -> tuple:
+) -> tuple[Figure, pd.DataFrame]:
     """
 
     :param data: the categories output by hpa_gene_classification
@@ -141,7 +142,7 @@ def plot_categories_go(
     :type kind: str, optional
     :param column_name: the column name to match the 'gene' column in data, ensembl_gene_id or external_gene_name
     :return a plotly.graph_objects.Figure of Pie plot, and the data used for the plot
-    :rtype: tuple
+    :rtype: tuple[Figure, pd.DataFrame]
     """
     use_df = go_terms.loc[go_terms.go_id == go_query]
     counts_use = (
