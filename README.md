@@ -6,13 +6,29 @@ The GeneSpectra module performs gene classification using scRNA-seq data.
 
 Steps:
 
-1. Reduce sparsity by creating metacells or pooling
+1. Reduce sparsity by creating metacells or pseudobulking
 2. Normalize data and filter low count genes
 3. Multi-thread gene classification for gene specificity and distribution
-4. Compare orthologs classes between species
+4. Compare ortholog classes between species
 
 Note that the gene classes are modified based on Human Protein Atlas classifications by [Karlsson, M. et al.](https://www.science.org/doi/10.1126/sciadv.abh2169?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%20%200pubmed})
 
+## Install
+
+First pull source code from the repository:
+
+```shell
+git clone https://github.com/Papatheodorou-Group/GeneSpectra.git
+cd GeneSpectra
+```
+
+[Pixi](https://pixi.sh/latest/) is used for dependency management.
+
+First install [pixi](https://pixi.sh/latest/#installation). Then, run this command in the `GeneSpectra/` directory to install project dependencies:
+
+```shell
+pixi install -a
+```
 
 ## Modules
 
@@ -26,6 +42,6 @@ Core module to perform gene filtering, normalization, and gene specificity and d
 
 ### Cross species
 
-Cross species comparison of gene classes, and plotting. Using [ensembl](https://www.ensembl.org/index.html) or [eggNOGV6](http://eggnog6.embl.de/) homology.
+Cross species comparison of gene classes, and plotting. Using [ensembl](https://www.ensembl.org/index.html) or [eggNOG](http://eggnog5.embl.de/) homology.
 
 Developer / maintainer: Yuyao Song, <ysong@ebi.ac.uk>
