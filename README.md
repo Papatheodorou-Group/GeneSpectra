@@ -2,7 +2,7 @@
 
 The GeneSpectra module performs gene classification using scRNA-seq data. 
 
-[Read our preprint here: Context-aware comparison of cell type gene expression across species](https://www.biorxiv.org/content/10.1101/2024.06.21.600109v1)
+[Read our preprint here: Revising the ortholog conjecture in cross-species comparison of scRNA-seq data (v3)](https://www.biorxiv.org/content/10.1101/2024.06.21.600109v3)
 
 Steps:
 
@@ -40,8 +40,13 @@ Wrapper functions and helper functions to use [metacells](https://github.com/tan
 
 Core module to perform gene filtering, normalization, and gene specificity and distribution classification. Uses multi-processing to parallize the processing of genes.
 
-### Cross species
+### Cross-species
 
-Cross species comparison of gene classes, and plotting. Using [ensembl](https://www.ensembl.org/index.html) or [eggNOG](http://eggnog5.embl.de/) homology.
+Cross-species comparison of gene classes and plotting. Using [ensembl](https://www.ensembl.org/index.html) or [eggNOG](http://eggnog5.embl.de/) homology.
+
+
+## Data associated
+
+The gene classification results for the three species datasets analyzed in the preprint are publicly available at [Zenodo](https://doi.org/10.5281/zenodo.17077680).
 
 Developer / maintainer: Yuyao Song, <ysong@ebi.ac.uk>
