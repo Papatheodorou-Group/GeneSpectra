@@ -38,7 +38,7 @@ Wrapper functions and helper functions to use [metacells](https://github.com/tan
 
 ### Gene classification
 
-Core module to perform gene filtering, normalization, and gene specificity and distribution classification. Uses multi-processing to parallize the processing of genes.
+Core module to perform gene filtering, normalization, and gene specificity and distribution classification. Uses multi-processing to parallelize the processing of genes.
 
 ### Cross-species
 
