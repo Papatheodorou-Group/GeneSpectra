@@ -31,6 +31,10 @@ First install [pixi](https://pixi.sh/latest/#installation). Then, run this comma
 pixi install -a
 ```
 
+Note that the core gene classification code in GeneSpectra technically works on very basic Python and can be adapted to other environments. 
+
+Installation should take about 5-10 minutes, mostly for conda to download packages. 
+
 ## Modules
 
 ### Metacells
@@ -61,7 +65,7 @@ A large table containing the specificity and distribution classes, and the GO an
 
 ### Expected run time
 
-Depending on the dataset size, and if parallelisation is used, the running time is estimated to be between 10 minutes and 60 minutes. 
+Depending on the dataset size, and if parallelisation is used, the running time is estimated to be between 10 and 60 minutes. 
 
 ## Data associated with preprint
 
