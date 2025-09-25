@@ -4,12 +4,13 @@ The GeneSpectra module performs gene classification using scRNA-seq data.
 
 [Read our preprint here: Revising the ortholog conjecture in cross-species comparison of scRNA-seq data (v3)](https://www.biorxiv.org/content/10.1101/2024.06.21.600109v3)
 
-Steps:
+Analysis steps provided in this package:
 
 1. Reduce sparsity by creating metacells or pseudobulking
-2. Normalize data and filter low count genes
+2. Normalise data and filter low-count genes
 3. Multi-thread gene classification for gene specificity and distribution
-4. Compare ortholog classes between species
+4. Visualisation of gene classification results
+5. Compare ortholog classes between species and generate the gene class conservation heatmap
 
 Note that the gene classes are modified based on Human Protein Atlas classifications by [Karlsson, M. et al.](https://www.science.org/doi/10.1126/sciadv.abh2169?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%20%200pubmed})
 
@@ -38,15 +39,32 @@ Wrapper functions and helper functions to use [metacells](https://github.com/tan
 
 ### Gene classification
 
-Core module to perform gene filtering, normalization, and gene specificity and distribution classification. Uses multi-processing to parallelize the processing of genes.
+Core module to perform gene filtering, normalisation, and gene specificity and distribution classification. Uses multi-processing to parallelise the processing of genes. Plotting functions of the gene class conservation heatmap is also included. 
 
 ### Cross-species
 
 Cross-species comparison of gene classes and plotting. Using [ensembl](https://www.ensembl.org/index.html) or [eggNOG](http://eggnog5.embl.de/) homology.
 
+## Running
 
-## Data associated
+### Example
 
-The gene classification results for the three species datasets analyzed in the preprint are publicly available at [Zenodo](https://doi.org/10.5281/zenodo.17077680).
+A comprehensive running example of performing gene classification is provided at `run_classification_sum_cell_pools.py`
 
-Developer / maintainer: Yuyao Song, <ysong@ebi.ac.uk>
+```shell
+python run_classification_sum_cell_pools.py
+```
+
+### Expected output
+
+A large table containing the specificity and distribution classes, and the GO annotations, of all genes in the anndata object. Cross-species orthology-mapped results and figures are also available if performed. 
+
+### Expected run time
+
+Depending on the dataset size, and if parallelisation is used, the running time is estimated to be between 10 minutes and 60 minutes. 
+
+## Data associated with preprint
+
+The gene classification results for the three species datasets analysed in the preprint are publicly available at [Zenodo](https://doi.org/10.5281/zenodo.17077680).
+
+Developer/maintainer: Yuyao Song, <ysong@ebi.ac.uk>
