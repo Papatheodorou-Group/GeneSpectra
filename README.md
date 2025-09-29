@@ -67,8 +67,12 @@ A large table containing the specificity and distribution classes, and the GO an
 
 Depending on the dataset size, and if parallelisation is used, the running time is estimated to be between 10 and 60 minutes. 
 
-## Data associated with preprint
+### Data associated with preprint
 
 The gene classification results for the three species datasets analysed in the preprint are publicly available at [Zenodo](https://doi.org/10.5281/zenodo.17077680).
+
+### Reproducibility
+
+Scripts and notebooks to recreate the analysis in the paper are available at [GeneSpectra_reproducibility](https://github.com/Papatheodorou-Group/GeneSpectra_reproducibility).
 
 Developer/maintainer: Yuyao Song, <ysong@ebi.ac.uk>
